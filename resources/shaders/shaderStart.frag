@@ -61,7 +61,6 @@ float computeShadow(){
 		shadow = 0.0f;
 	}
 		
-
 	return shadow;
 }
 
@@ -84,7 +83,6 @@ void main()
 	vec4 fogColor = vec4(0.5f, 0.5f, 0.5f, 1.0f);
 
 	ambient *= texture(diffuseTexture, fTexCoords).rgb;
-	//ambient *= colorFromSkybox;
 	diffuse *= texture(diffuseTexture, fTexCoords).rgb;
 	specular *= texture(specularTexture, fTexCoords).rgb;
 

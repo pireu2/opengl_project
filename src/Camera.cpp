@@ -3,7 +3,8 @@
 namespace gps
 {
 
-    Camera::Camera(glm::vec3 position, glm::vec3 up, float yaw, float pitch) {
+    Camera::Camera(glm::vec3 position, glm::vec3 up, float yaw, float pitch)
+    {
         Position = position;
         WorldUp = up;
         Yaw = yaw;
@@ -15,23 +16,26 @@ namespace gps
         updateCameraVectors();
     }
 
-    Camera::Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch) {
-		Position = glm::vec3(posX, posY, posZ);
-		WorldUp = glm::vec3(upX, upY, upZ);
-		Yaw = yaw;
-		Pitch = pitch;
-		MouseSensitivity = SENSITIVITY;
-		MovementSpeed = SPEED;
-		Zoom = ZOOM;
+    Camera::Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch)
+    {
+        Position = glm::vec3(posX, posY, posZ);
+        WorldUp = glm::vec3(upX, upY, upZ);
+        Yaw = yaw;
+        Pitch = pitch;
+        MouseSensitivity = SENSITIVITY;
+        MovementSpeed = SPEED;
+        Zoom = ZOOM;
 
-		updateCameraVectors();
-	}
+        updateCameraVectors();
+    }
 
-    glm::mat4 Camera::getViewMatrix() {
+    glm::mat4 Camera::getViewMatrix()
+    {
         return glm::lookAt(Position, Position + Front, Up);
     }
 
-    void Camera::ProcessKeyboard(MOVE_DIRECTION direction, float deltaTime) {
+    void Camera::ProcessKeyboard(MOVE_DIRECTION direction, float deltaTime)
+    {
         float velocity = MovementSpeed * deltaTime;
         if (direction == FORWARD)
             Position += Front * velocity;
@@ -71,14 +75,20 @@ namespace gps
             Zoom = 45.0f;
     }
 
-    void Camera::updateCameraVectors() {
+    glm::vec3 Camera::getCameraPosition() const
+    {
+        return Position;
+    }
+
+    void Camera::updateCameraVectors()
+    {
         glm::vec3 front;
         front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
         front.y = sin(glm::radians(Pitch));
         front.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
         Front = glm::normalize(front);
-        Right = glm::normalize(glm::cross(Front, WorldUp));  
+        Right = glm::normalize(glm::cross(Front, WorldUp));
         Up = glm::normalize(glm::cross(Right, Front));
     }
-    
+
 }

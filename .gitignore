@@ -4,4 +4,8 @@ build/
 /.vs
 .idea/
 CMakeSettings.json
-/resources/objects/
+*.obj
+*.png
+*.jpg
+*.mtl
+!resources/objects/water/water.obj

@@ -1,5 +1,3 @@
-# https://github.com/meemknight/cmakeSetup
-
 cmake_minimum_required(VERSION 3.16)
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>") # we want to use the static runtime
@@ -17,6 +15,7 @@ add_subdirectory(thirdparty/stb_image) # loading immaged
 add_subdirectory(thirdparty/stb_truetype) # loading ttf files
 add_subdirectory(thirdparty/glm) # math
 add_subdirectory(thirdparty/imgui-docking) # ui
+add_subdirectory(thirdparty/tiny_obj_loader) # obj loader
 
 file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
@@ -41,7 +40,7 @@ endif()
 target_include_directories("${CMAKE_PROJECT_NAME}" PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
 
 target_link_libraries("${CMAKE_PROJECT_NAME}" PRIVATE glm glfw
-    glad stb_image stb_truetype imgui)
+    glad stb_image stb_truetype tiny_obj_loader imgui)
 
 # Add the GLM_ENABLE_EXPERIMENTAL definition
 target_compile_definitions("${CMAKE_PROJECT_NAME}" PUBLIC GLM_ENABLE_EXPERIMENTAL)

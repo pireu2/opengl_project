@@ -3,11 +3,14 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+#include <imgui.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 
 #include <openglDebug.h>
 
@@ -18,73 +21,77 @@
 
 #include <iostream>
 
-int glWindowWidth = 800;
-int glWindowHeight = 600;
+int glWindowWidth = 1920;
+int glWindowHeight = 1080;
 int retina_width, retina_height;
 GLFWwindow *glWindow = NULL;
 
-const unsigned int SHADOW_WIDTH = 20480;
-const unsigned int SHADOW_HEIGHT = 20480;
+const unsigned int SHADOW_WIDTH = 2048;
+const unsigned int SHADOW_HEIGHT = 2048;
 
 glm::mat4 model;
-GLuint modelLoc;
 glm::mat4 view;
-GLuint viewLoc;
 glm::mat4 projection;
-GLuint projectionLoc;
 glm::mat3 normalMatrix;
-GLuint normalMatrixLoc;
 glm::mat4 lightRotation;
 
 glm::vec3 lightDir;
-GLuint lightDirLoc;
 glm::vec3 lightColor;
-GLuint lightColorLoc;
 
 gps::Camera myCamera(
     glm::vec3(0.0f, 2.0f, 5.5f),
     glm::vec3(0.0f, 1.0f, 0.0f));
-float cameraSpeed = 0.01f;
+float baseCameraSpeed = 1.0f;
+float cameraSpeed = baseCameraSpeed;
 
 bool pressedKeys[1024];
 float angleY = 0.0f;
 bool firstMouse = true;
 float lastX, lastY;
 
-GLfloat lightAngle;
+float timeWater = 0.0f;
 
-gps::Model3D nanosuit;
-gps::Model3D ground;
-gps::Model3D lightCube;
-gps::Model3D screenQuad;
-gps::Model3D city;
+int vertexWaveCount = 8;
+int fragmentWaveCount = 40;
 
-gps::Shader myCustomShader;
-gps::Shader lightShader;
-gps::Shader screenQuadShader;
-gps::Shader skyboxShader;
-gps::Shader depthMapShader;
+float vertexSeed = 0.0f;
+float vertexSeedIter = 1253.2131f;
+float vertexFrequency = 1.0f;
+float vertexFrequencyMult = 1.18f;
+float vertexAmplitude = 1.0f;
+float vertexAmplitudeMult = 0.82f;
+float vertexInitialSpeed = 2.0f;
+float vertexSpeedRamp = 1.07f;
+float vertexDrag = 1.0f;
+float vertexHeight = 1.0f;
+float vertexMaxPeak = 1.0f;
+float vertexPeakOffset = 1.0f;
 
-gps::SkyBox mySkybox;
+float fragmentSeed = 0.0f;
+float fragmentSeedIter = 1253.2131f;
+float fragmentFrequency = 1.0f;
+float fragmentFrequencyMult = 1.18f;
+float fragmentAmplitude = 1.0f;
+float fragmentAmplitudeMult = 0.82f;
+float fragmentInitialSpeed = 2.0f;
+float fragmentSpeedRamp = 1.07f;
+float fragmentDrag = 1.0f;
+float fragmentHeight = 1.0f;
+float fragmentMaxPeak = 1.0f;
+float fragmentPeakOffset = 1.0f;
 
-GLuint shadowMapFBO;
-GLuint depthMapTexture;
-
-bool showDepthMap;
+gps::Model3D water;
+gps::Shader waterShader;
 
 void windowResizeCallback(GLFWwindow *window, int width, int height)
 {
     fprintf(stdout, "window resized to width: %d , and height: %d\n", width, height);
-    // TODO
 }
 
 void keyboardCallback(GLFWwindow *window, int key, int scancode, int action, int mode)
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
-
-    if (key == GLFW_KEY_M && action == GLFW_PRESS)
-        showDepthMap = !showDepthMap;
 
     if (key >= 0 && key < 1024)
     {
@@ -107,42 +114,28 @@ void mouseCallback(GLFWwindow *window, double xposIn, double yposIn)
         firstMouse = false;
     }
 
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos;
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS)
+    {
+        float xoffset = xpos - lastX;
+        float yoffset = lastY - ypos;
+
+        myCamera.ProcessMouseMovement(xoffset, yoffset);
+    }
 
     lastX = xpos;
     lastY = ypos;
-
-    myCamera.ProcessMouseMovement(xoffset, yoffset);
-    view = myCamera.getViewMatrix();
-    // glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-    // glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
-    // glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDir));
 }
 
 void processMovement()
 {
-    if (pressedKeys[GLFW_KEY_Q])
+    if (pressedKeys[GLFW_KEY_LEFT_SHIFT] || pressedKeys[GLFW_KEY_RIGHT_SHIFT])
     {
-        angleY -= 1.0f;
+        cameraSpeed = baseCameraSpeed * 5.0f;
     }
-
-    if (pressedKeys[GLFW_KEY_E])
+    else
     {
-        angleY += 1.0f;
+        cameraSpeed = baseCameraSpeed;
     }
-
-    if (pressedKeys[GLFW_KEY_J])
-    {
-        lightAngle -= 1.0f;
-    }
-
-    if (pressedKeys[GLFW_KEY_L])
-    {
-        lightAngle += 1.0f;
-    }
-
     if (pressedKeys[GLFW_KEY_W])
     {
         myCamera.ProcessKeyboard(gps::FORWARD, cameraSpeed);
@@ -196,7 +189,7 @@ bool initOpenGLWindow()
     glfwSetWindowSizeCallback(glWindow, windowResizeCallback);
     glfwSetKeyCallback(glWindow, keyboardCallback);
     glfwSetCursorPosCallback(glWindow, mouseCallback);
-    glfwSetInputMode(glWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    // glfwSetInputMode(glWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     glfwMakeContextCurrent(glWindow);
 
@@ -204,13 +197,13 @@ bool initOpenGLWindow()
 
     glfwSwapInterval(1);
 
-    glEnable(GL_DEBUG_OUTPUT);
+    /*glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(glDebugOutput, 0);
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);*/
 
-    const GLubyte *renderer = glGetString(GL_RENDERER); 
-    const GLubyte *version = glGetString(GL_VERSION);  
+    const GLubyte *renderer = glGetString(GL_RENDERER);
+    const GLubyte *version = glGetString(GL_VERSION);
     printf("Renderer: %s\n", renderer);
     printf("OpenGL version supported %s\n", version);
 
@@ -235,219 +228,143 @@ void initOpenGLState()
 
 void initObjects()
 {
-    nanosuit.LoadModel(RESOURCES_PATH "objects/nanosuit/nanosuit.obj");
-    ground.LoadModel(RESOURCES_PATH "objects/ground/ground.obj");
-    lightCube.LoadModel(RESOURCES_PATH "objects/cube/cube.obj");
-    screenQuad.LoadModel(RESOURCES_PATH "objects/quad/quad.obj");
-    city.LoadModel(RESOURCES_PATH "objects/city/gm_bigcity.obj");
-}
-
-void initSkybox()
-{
-    std::vector<const GLchar *> faces;
-    faces.push_back(RESOURCES_PATH "skybox/right.tga");
-    faces.push_back(RESOURCES_PATH "skybox/left.tga");
-    faces.push_back(RESOURCES_PATH "skybox/top.tga");
-    faces.push_back(RESOURCES_PATH "skybox/bottom.tga");
-    faces.push_back(RESOURCES_PATH "skybox/back.tga");
-    faces.push_back(RESOURCES_PATH "skybox/front.tga");
-
-    mySkybox.Load(faces);
+    water.LoadModel(RESOURCES_PATH "objects/water/water.obj");
 }
 
 void initShaders()
 {
-    myCustomShader.loadShader(RESOURCES_PATH "shaders/shaderStart.vert", RESOURCES_PATH "shaders/shaderStart.frag");
-    myCustomShader.useShaderProgram();
-    lightShader.loadShader(RESOURCES_PATH "shaders/lightCube.vert", RESOURCES_PATH "shaders/lightCube.frag");
-    lightShader.useShaderProgram();
-    screenQuadShader.loadShader(RESOURCES_PATH "shaders/screenQuad.vert", RESOURCES_PATH "shaders/screenQuad.frag");
-    screenQuadShader.useShaderProgram();
-    skyboxShader.loadShader(RESOURCES_PATH "shaders/skyboxShader.vert", "shaders/skyboxShader.frag");
-    skyboxShader.useShaderProgram();
-    depthMapShader.loadShader(RESOURCES_PATH "shaders/depthMapShader.vert", RESOURCES_PATH "shaders/depthMapShader.frag");
-    depthMapShader.useShaderProgram();
+    waterShader.loadShader(RESOURCES_PATH "shaders/water.vert", RESOURCES_PATH "shaders/water.frag");
+    waterShader.useShaderProgram();
 }
 
 void initUniforms()
 {
-    myCustomShader.useShaderProgram();
 
     model = glm::mat4(1.0f);
-    modelLoc = glGetUniformLocation(myCustomShader.shaderProgram, "model");
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
     view = myCamera.getViewMatrix();
-    viewLoc = glGetUniformLocation(myCustomShader.shaderProgram, "view");
-    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
     normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-    normalMatrixLoc = glGetUniformLocation(myCustomShader.shaderProgram, "normalMatrix");
-    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
 
-    projection = glm::perspective(glm::radians(45.0f), (float)retina_width / (float)retina_height, 0.1f, 1000.0f);
-    projectionLoc = glGetUniformLocation(myCustomShader.shaderProgram, "projection");
-    glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
+    projection = glm::perspective(glm::radians(45.0f), (float)retina_width / (float)retina_height, 0.1f, 10000.0f);
 
-    // set the light direction (direction towards the light)
-    lightDir = glm::vec3(200.0f, 1500.0f, 200.0f);
-    lightRotation = glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f));
-    lightDirLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightDir");
-    glUniform3fv(lightDirLoc, 1, glm::value_ptr(glm::inverseTranspose(glm::mat3(view * lightRotation)) * lightDir));
+    lightDir = glm::vec3(-400.0f, 500.0f, 1000.0f);
 
-    // set light color
-    lightColor = glm::vec3(1.0f, 1.0f, 1.0f); // white light
-    lightColorLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightColor");
-    glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
+    lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 
-    lightShader.useShaderProgram();
-    glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    waterShader.useShaderProgram();
+    waterShader.setMat4("model", model);
+    waterShader.setMat4("view", view);
+    waterShader.setMat3("normalMatrix", normalMatrix);
+
+    waterShader.setVec3("lightPos", lightDir);
+    waterShader.setVec3("viewPos", myCamera.getCameraPosition());
+    waterShader.setVec3("lightColor", lightColor);
+    waterShader.setVec3("objectColor", glm::vec3(0.0f, 0.5f, 1.0f));
+
+
+    waterShader.setInt("vertexWaveCount", vertexWaveCount);
+    waterShader.setFloat("vertexSeed", vertexSeed);
+    waterShader.setFloat("vertexSeedIter", vertexSeedIter);
+    waterShader.setFloat("vertexFrequency", vertexFrequency);
+    waterShader.setFloat("vertexFrequencyMult", vertexFrequencyMult);
+    waterShader.setFloat("vertexAmplitude", vertexAmplitude);
+    waterShader.setFloat("vertexAmplitudeMult", vertexAmplitudeMult);
+    waterShader.setFloat("vertexInitialSpeed", vertexInitialSpeed);
+    waterShader.setFloat("vertexSpeedRamp", vertexSpeedRamp);
+    waterShader.setFloat("vertexDrag", vertexDrag);
+    waterShader.setFloat("vertexHeight", vertexHeight);
+    waterShader.setFloat("vertexMaxPeak", vertexMaxPeak);
+    waterShader.setFloat("vertexPeakOffset", vertexPeakOffset);
+    waterShader.setInt("fragmentWaveCount", fragmentWaveCount);
+    waterShader.setFloat("fragmentSeed", fragmentSeed);
+    waterShader.setFloat("fragmentSeedIter", fragmentSeedIter);
+    waterShader.setFloat("fragmentFrequency", fragmentFrequency);
+    waterShader.setFloat("fragmentFrequencyMult", fragmentFrequencyMult);
+    waterShader.setFloat("fragmentAmplitude", fragmentAmplitude);
+    waterShader.setFloat("fragmentAmplitudeMult", fragmentAmplitudeMult);
+    waterShader.setFloat("fragmentInitialSpeed", fragmentInitialSpeed);
+    waterShader.setFloat("fragmentSpeedRamp", fragmentSpeedRamp);
+    waterShader.setFloat("fragmentDrag", fragmentDrag);
+    waterShader.setFloat("fragmentHeight", fragmentHeight);
+    waterShader.setFloat("fragmentMaxPeak", fragmentMaxPeak);
+    waterShader.setFloat("fragmentPeakOffset", fragmentPeakOffset);
 }
 
-void initFBO()
+void drawWater(gps::Shader shader)
 {
-    glGenFramebuffers(1, &shadowMapFBO);
-    glGenTextures(1, &depthMapTexture);
-
-    glBindTexture(GL_TEXTURE_2D, depthMapTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
-                 SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    float borderColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMapTexture, 0);
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-}
-
-glm::mat4 computeLightSpaceTrMatrix()
-{
-    glm::mat4 lightView = glm::lookAt(glm::inverseTranspose(glm::mat3(lightRotation)) * lightDir, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
-    const GLfloat near_plane = 0.1f, far_plane = 1500.0f;
-
-    glm::mat4 lightProjection = glm::ortho(-400.0f, 400.0f, -400.0f, 400.0f, near_plane, far_plane);
-
-    glm::mat4 lightSpaceTrMatrix = lightProjection * lightView;
-
-    return lightSpaceTrMatrix;
-}
-
-void drawObjects(gps::Shader shader, bool depthPass)
-{
-
     shader.useShaderProgram();
 
-    model = glm::rotate(glm::mat4(1.0f), glm::radians(angleY), glm::vec3(0.0f, 1.0f, 0.0f));
-    glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    model = glm::mat4(1.0f);
+    shader.setMat4("model", model);
 
-    if (!depthPass)
-    {
-        normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-        glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
-    }
+    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+    shader.setMat3("normalMatrix", normalMatrix);
 
-    //nanosuit.Draw(shader);
-
-    model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-    model = glm::scale(model, glm::vec3(0.5f));
-    glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-
-    if (!depthPass)
-    {
-        normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-        glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
-    }
-
-    city.Draw(shader);
-
-    // ground.Draw(shader);
+    water.Draw(shader);
 }
 
 void renderScene()
 {
 
-    depthMapShader.useShaderProgram();
+    glViewport(0, 0, retina_width, retina_height);
 
-    glUniformMatrix4fv(glGetUniformLocation(depthMapShader.shaderProgram, "lightSpaceTrMatrix"),
-                       1,
-                       GL_FALSE,
-                       glm::value_ptr(computeLightSpaceTrMatrix()));
-    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-    glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
-    glClear(GL_DEPTH_BUFFER_BIT);
-    drawObjects(depthMapShader, true);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    view = myCamera.getViewMatrix();
 
-    if (showDepthMap)
-    {
-        glViewport(0, 0, retina_width, retina_height);
+    waterShader.useShaderProgram();
+    waterShader.setMat4("view", view);
+    waterShader.setVec3("viewPos", myCamera.getCameraPosition());
+    waterShader.setVec3("lightPos", lightDir);
+    waterShader.setMat4("projection", projection);
+    waterShader.setFloat("time", timeWater);
 
-        glClear(GL_COLOR_BUFFER_BIT);
+    waterShader.setInt("vertexWaveCount", vertexWaveCount);
+    waterShader.setFloat("vertexSeed", vertexSeed);
+    waterShader.setFloat("vertexSeedIter", vertexSeedIter);
+    waterShader.setFloat("vertexFrequency", vertexFrequency);
+    waterShader.setFloat("vertexFrequencyMult", vertexFrequencyMult);
+    waterShader.setFloat("vertexAmplitude", vertexAmplitude);
+    waterShader.setFloat("vertexAmplitudeMult", vertexAmplitudeMult);
+    waterShader.setFloat("vertexInitialSpeed", vertexInitialSpeed);
+    waterShader.setFloat("vertexSpeedRamp", vertexSpeedRamp);
+    waterShader.setFloat("vertexDrag", vertexDrag);
+    waterShader.setFloat("vertexHeight", vertexHeight);
+    waterShader.setFloat("vertexMaxPeak", vertexMaxPeak);
+    waterShader.setFloat("vertexPeakOffset", vertexPeakOffset);
+    waterShader.setInt("fragmentWaveCount", fragmentWaveCount);
+    waterShader.setFloat("fragmentSeed", fragmentSeed);
+    waterShader.setFloat("fragmentSeedIter", fragmentSeedIter);
+    waterShader.setFloat("fragmentFrequency", fragmentFrequency);
+    waterShader.setFloat("fragmentFrequencyMult", fragmentFrequencyMult);
+    waterShader.setFloat("fragmentAmplitude", fragmentAmplitude);
+    waterShader.setFloat("fragmentAmplitudeMult", fragmentAmplitudeMult);
+    waterShader.setFloat("fragmentInitialSpeed", fragmentInitialSpeed);
+    waterShader.setFloat("fragmentSpeedRamp", fragmentSpeedRamp);
+    waterShader.setFloat("fragmentDrag", fragmentDrag);
+    waterShader.setFloat("fragmentHeight", fragmentHeight);
+    waterShader.setFloat("fragmentMaxPeak", fragmentMaxPeak);
+    waterShader.setFloat("fragmentPeakOffset", fragmentPeakOffset);
+    drawWater(waterShader);
+}
 
-        screenQuadShader.useShaderProgram();
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, depthMapTexture);
-        glUniform1i(glGetUniformLocation(screenQuadShader.shaderProgram, "depthMap"), 0);
-
-        glDisable(GL_DEPTH_TEST);
-        screenQuad.Draw(screenQuadShader);
-        glEnable(GL_DEPTH_TEST);
-    }
-    else
-    {
-
-
-        glViewport(0, 0, retina_width, retina_height);
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        myCustomShader.useShaderProgram();
-
-        view = myCamera.getViewMatrix();
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-
-        lightRotation = glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f));
-        glUniform3fv(lightDirLoc, 1, glm::value_ptr(glm::inverseTranspose(glm::mat3(view * lightRotation)) * lightDir));
-
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, depthMapTexture);
-        glUniform1i(glGetUniformLocation(myCustomShader.shaderProgram, "shadowMap"), 3);
-
-        glUniformMatrix4fv(glGetUniformLocation(myCustomShader.shaderProgram, "lightSpaceTrMatrix"),
-                           1,
-                           GL_FALSE,
-                           glm::value_ptr(computeLightSpaceTrMatrix()));
-
-        drawObjects(myCustomShader, false);
-
-
-        lightShader.useShaderProgram();
-
-        glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-
-        model = lightRotation;
-        model = glm::translate(model, 1.0f * lightDir);
-        model = glm::scale(model, glm::vec3(0.05f, 0.05f, 0.05f));
-        glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-
-        lightCube.Draw(lightShader);
-        mySkybox.Draw(skyboxShader, view, projection);
-    }
+void initImGui()
+{
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO &io = ImGui::GetIO();
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(glWindow, true);
+    ImGui_ImplOpenGL3_Init("#version 410");
 }
 
 void cleanup()
 {
-    glDeleteTextures(1, &depthMapTexture);
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDeleteFramebuffers(1, &shadowMapFBO);
     glfwDestroyWindow(glWindow);
     glfwTerminate();
 }
@@ -463,16 +380,59 @@ int main(int argc, const char *argv[])
 
     initOpenGLState();
     initObjects();
-    initSkybox();
     initShaders();
     initUniforms();
-    initFBO();
-
+    initImGui();
 
     while (!glfwWindowShouldClose(glWindow))
     {
+        timeWater = (float)glfwGetTime();
+        waterShader.useShaderProgram();
         processMovement();
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::Begin("Water Parameters");
+        ImGui::SliderInt("Vertex Wave Count", &vertexWaveCount, 1, 20);
+        ImGui::SliderFloat("Vertex Seed", &vertexSeed, 0.0f, 1000.0f);
+        ImGui::SliderFloat("Vertex Seed Iter", &vertexSeedIter, 0.0f, 1000.0f);
+        ImGui::SliderFloat("Vertex Frequency", &vertexFrequency, 0.1f, 10.0f);
+        ImGui::SliderFloat("Vertex Frequency Mult", &vertexFrequencyMult, 0.1f, 10.0f);
+        ImGui::SliderFloat("Vertex Amplitude", &vertexAmplitude, 0.0f, 1.0f);
+        ImGui::SliderFloat("Vertex Amplitude Mult", &vertexAmplitudeMult, 0.0f, 1.0f);
+        ImGui::SliderFloat("Vertex Initial Speed", &vertexInitialSpeed, 0.0f, 10.0f);
+        ImGui::SliderFloat("Vertex Speed Ramp", &vertexSpeedRamp, 0.0f, 10.0f);
+        ImGui::SliderFloat("Vertex Drag", &vertexDrag, 0.0f, 10.0f);
+        ImGui::SliderFloat("Vertex Height", &vertexHeight, 0.0f, 10.0f);
+        ImGui::SliderFloat("Vertex Max Peak", &vertexMaxPeak, 0.0f, 10.0f);
+        ImGui::SliderFloat("Vertex Peak Offset", &vertexPeakOffset, 0.0f, 10.0f);
+        ImGui::SliderInt("Fragment Wave Count", &fragmentWaveCount, 1, 50);
+        ImGui::SliderFloat("Fragment Seed", &fragmentSeed, 0.0f, 1000.0f);
+        ImGui::SliderFloat("Fragment Seed Iter", &fragmentSeedIter, 0.0f, 1000.0f);
+        ImGui::SliderFloat("Fragment Frequency", &fragmentFrequency, 0.1f, 10.0f);
+        ImGui::SliderFloat("Fragment Frequency Mult", &fragmentFrequencyMult, 0.1f, 10.0f);
+        ImGui::SliderFloat("Fragment Amplitude", &fragmentAmplitude, 0.0f, 1.0f);
+        ImGui::SliderFloat("Fragment Amplitude Mult", &fragmentAmplitudeMult, 0.0f, 1.0f);
+        ImGui::SliderFloat("Fragment Initial Speed", &fragmentInitialSpeed, 0.0f, 10.0f);
+        ImGui::SliderFloat("Fragment Speed Ramp", &fragmentSpeedRamp, 0.0f, 10.0f);
+        ImGui::SliderFloat("Fragment Drag", &fragmentDrag, 0.0f, 10.0f);
+        ImGui::SliderFloat("Fragment Height", &fragmentHeight, 0.0f, 10.0f);
+        ImGui::SliderFloat("Fragment Max Peak", &fragmentMaxPeak, 0.0f, 10.0f);
+        ImGui::SliderFloat("Fragment Peak Offset", &fragmentPeakOffset, 0.0f, 10.0f);
+        ImGui::End();
+
+        ImGui::Begin("Light Position");
+        ImGui::SliderFloat("X", &lightDir.x, -1000.0f, 1000.0f);
+        ImGui::SliderFloat("Y", &lightDir.y, -1000.0f, 1000.0f);
+        ImGui::SliderFloat("Z", &lightDir.z, -1000.0f, 1000.0f);
+        ImGui::End();
+
         renderScene();
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwPollEvents();
         glfwSwapBuffers(glWindow);

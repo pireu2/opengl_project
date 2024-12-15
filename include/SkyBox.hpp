@@ -2,7 +2,7 @@
 
 
 #include "Shader.hpp"
-#include "stb_image.h"
+#include <stb_image/stb_image.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
