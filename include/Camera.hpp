@@ -37,6 +37,7 @@ namespace gps
         void ProcessMouseMovement(float xoffset, float yoffset, bool constantPitch = true);
         void ProcessMouseScroll(float yoffset);
         [[nodiscard]] glm::vec3 getCameraPosition() const;
+        [[nodiscard]] float getZoom() const;
 
     private:
         glm::vec3 Position{};

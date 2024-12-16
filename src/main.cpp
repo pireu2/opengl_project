@@ -9,7 +9,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <imgui.h>
-#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_glfw.h>ßßßßßßß
 #include <backends/imgui_impl_opengl3.h>
 
 #include <openglDebug.h>
@@ -18,7 +18,7 @@
 #include <Model3D.hpp>
 #include <Camera.hpp>
 #include <SkyBox.hpp>
-
+#include <Water.hpp>
 
 int glWindowWidth = 1920;
 int glWindowHeight = 1080;
@@ -34,7 +34,7 @@ glm::mat4 projection;
 glm::mat3 normalMatrix;
 glm::mat4 lightRotation;
 
-glm::vec3 lightDir;
+glm::vec3 lightPos;
 glm::vec3 lightColor;
 
 gps::Camera myCamera(
@@ -48,39 +48,8 @@ float angleY = 0.0f;
 bool firstMouse = true;
 float lastX, lastY;
 
-float timeWater = 0.0f;
 
-int vertexWaveCount = 8;
-int fragmentWaveCount = 40;
-
-float vertexSeed = 0.0f;
-float vertexSeedIter = 1253.2131f;
-float vertexFrequency = 1.0f;
-float vertexFrequencyMult = 1.18f;
-float vertexAmplitude = 1.0f;
-float vertexAmplitudeMult = 0.82f;
-float vertexInitialSpeed = 2.0f;
-float vertexSpeedRamp = 1.07f;
-float vertexDrag = 1.0f;
-float vertexHeight = 1.0f;
-float vertexMaxPeak = 1.0f;
-float vertexPeakOffset = 1.0f;
-
-float fragmentSeed = 0.0f;
-float fragmentSeedIter = 1253.2131f;
-float fragmentFrequency = 1.0f;
-float fragmentFrequencyMult = 1.18f;
-float fragmentAmplitude = 1.0f;
-float fragmentAmplitudeMult = 0.82f;
-float fragmentInitialSpeed = 2.0f;
-float fragmentSpeedRamp = 1.07f;
-float fragmentDrag = 1.0f;
-float fragmentHeight = 1.0f;
-float fragmentMaxPeak = 1.0f;
-float fragmentPeakOffset = 1.0f;
-
-gps::Model3D water;
-gps::Shader waterShader;
+gps::Water water;
 
 gps::SkyBox mySkybox;
 gps::Shader skyboxShader;
@@ -104,10 +73,15 @@ void keyboardCallback(GLFWwindow *window, int key, int scancode, int action, int
     }
 }
 
+void scrollCallback(GLFWwindow *window, double xoffset, double yoffset)
+{
+    myCamera.ProcessMouseScroll(static_cast<float>(yoffset));
+}
+
 void mouseCallback(GLFWwindow *window, double xposIn, double yposIn)
 {
-    auto xpos = static_cast<float>(xposIn);
-    auto ypos = static_cast<float>(yposIn);
+    const auto xpos = static_cast<float>(xposIn);
+    const auto ypos = static_cast<float>(yposIn);
 
     if (firstMouse)
     {
@@ -191,6 +165,7 @@ bool initOpenGLWindow()
     glfwSetWindowSizeCallback(glWindow, windowResizeCallback);
     glfwSetKeyCallback(glWindow, keyboardCallback);
     glfwSetCursorPosCallback(glWindow, mouseCallback);
+    glfwSetScrollCallback(glWindow, scrollCallback);
     // glfwSetInputMode(glWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     glfwMakeContextCurrent(glWindow);
@@ -230,17 +205,15 @@ void initOpenGLState()
 
 void initObjects()
 {
-    water.LoadModel(RESOURCES_PATH "objects/water/water.obj");
+    water.loadModel(RESOURCES_PATH "objects/water/water.obj");
 }
 
 void initShaders()
 {
-    waterShader.loadShader(RESOURCES_PATH "shaders/water.vert", RESOURCES_PATH "shaders/water.frag");
-    waterShader.useShaderProgram();
+    water.loadShader(RESOURCES_PATH "shaders/water.vert", RESOURCES_PATH "shaders/water.frag");
     skyboxShader.loadShader(RESOURCES_PATH "shaders/skyboxShader.vert", RESOURCES_PATH "shaders/skyboxShader.frag");
     skyboxShader.useShaderProgram();
 }
-
 
 void initUniforms()
 {
@@ -251,9 +224,9 @@ void initUniforms()
 
     normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
 
-    projection = glm::perspective(glm::radians(45.0f), static_cast<float>(retina_width) / static_cast<float>(retina_height), 0.1f, 10000.0f);
+    projection = glm::perspective(glm::radians(myCamera.getZoom()), static_cast<float>(retina_width) / static_cast<float>(retina_height), 0.1f, 10000.0f);
 
-    lightDir = glm::vec3(-400.0f, 500.0f, 1000.0f);
+    lightPos = glm::vec3(-59.0f, 180.0f, -550.0f);
 
     lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 
@@ -261,59 +234,9 @@ void initUniforms()
     skyboxShader.setMat4("view", view);
     skyboxShader.setMat4("projection", projection);
 
-    waterShader.useShaderProgram();
-    waterShader.setMat4("model", model);
-    waterShader.setMat4("view", view);
-    waterShader.setMat3("normalMatrix", normalMatrix);
+    const auto cameraPosition = myCamera.getCameraPosition();
 
-    auto cameraPosition = myCamera.getCameraPosition();
-    auto objectColor = glm::vec3(0.0f, 0.5f, 1.0f);
-
-    waterShader.setVec3("lightPos", lightDir);
-    waterShader.setVec3("viewPos", cameraPosition);
-    waterShader.setVec3("lightColor", lightColor);
-    waterShader.setVec3("objectColor", objectColor);
-
-
-    waterShader.setInt("vertexWaveCount", vertexWaveCount);
-    waterShader.setFloat("vertexSeed", vertexSeed);
-    waterShader.setFloat("vertexSeedIter", vertexSeedIter);
-    waterShader.setFloat("vertexFrequency", vertexFrequency);
-    waterShader.setFloat("vertexFrequencyMult", vertexFrequencyMult);
-    waterShader.setFloat("vertexAmplitude", vertexAmplitude);
-    waterShader.setFloat("vertexAmplitudeMult", vertexAmplitudeMult);
-    waterShader.setFloat("vertexInitialSpeed", vertexInitialSpeed);
-    waterShader.setFloat("vertexSpeedRamp", vertexSpeedRamp);
-    waterShader.setFloat("vertexDrag", vertexDrag);
-    waterShader.setFloat("vertexHeight", vertexHeight);
-    waterShader.setFloat("vertexMaxPeak", vertexMaxPeak);
-    waterShader.setFloat("vertexPeakOffset", vertexPeakOffset);
-    waterShader.setInt("fragmentWaveCount", fragmentWaveCount);
-    waterShader.setFloat("fragmentSeed", fragmentSeed);
-    waterShader.setFloat("fragmentSeedIter", fragmentSeedIter);
-    waterShader.setFloat("fragmentFrequency", fragmentFrequency);
-    waterShader.setFloat("fragmentFrequencyMult", fragmentFrequencyMult);
-    waterShader.setFloat("fragmentAmplitude", fragmentAmplitude);
-    waterShader.setFloat("fragmentAmplitudeMult", fragmentAmplitudeMult);
-    waterShader.setFloat("fragmentInitialSpeed", fragmentInitialSpeed);
-    waterShader.setFloat("fragmentSpeedRamp", fragmentSpeedRamp);
-    waterShader.setFloat("fragmentDrag", fragmentDrag);
-    waterShader.setFloat("fragmentHeight", fragmentHeight);
-    waterShader.setFloat("fragmentMaxPeak", fragmentMaxPeak);
-    waterShader.setFloat("fragmentPeakOffset", fragmentPeakOffset);
-}
-
-void drawWater(gps::Shader shader)
-{
-    shader.useShaderProgram();
-
-    model = glm::mat4(1.0f);
-    shader.setMat4("model", model);
-
-    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-    shader.setMat3("normalMatrix", normalMatrix);
-
-    water.Draw(shader);
+    water.initUniforms(model, view, normalMatrix, lightPos, lightColor, cameraPosition);
 }
 
 void renderScene()
@@ -324,47 +247,16 @@ void renderScene()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     view = myCamera.getViewMatrix();
-    auto cameraPosition = myCamera.getCameraPosition();
+    projection = glm::perspective(glm::radians(myCamera.getZoom()), static_cast<float>(retina_width) / static_cast<float>(retina_height), 0.1f, 10000.0f);
+    const auto cameraPosition = myCamera.getCameraPosition();
 
     skyboxShader.useShaderProgram();
     skyboxShader.setMat4("projection", projection);
     skyboxShader.setMat4("view", view);
 
-    waterShader.useShaderProgram();
-    waterShader.setMat4("view", view);
-    waterShader.setVec3("viewPos", cameraPosition);
-    waterShader.setVec3("lightPos", lightDir);
-    waterShader.setMat4("projection", projection);
-    waterShader.setFloat("time", timeWater);
+    water.setUniforms(view, projection, lightPos, cameraPosition);
 
-    waterShader.setInt("vertexWaveCount", vertexWaveCount);
-    waterShader.setFloat("vertexSeed", vertexSeed);
-    waterShader.setFloat("vertexSeedIter", vertexSeedIter);
-    waterShader.setFloat("vertexFrequency", vertexFrequency);
-    waterShader.setFloat("vertexFrequencyMult", vertexFrequencyMult);
-    waterShader.setFloat("vertexAmplitude", vertexAmplitude);
-    waterShader.setFloat("vertexAmplitudeMult", vertexAmplitudeMult);
-    waterShader.setFloat("vertexInitialSpeed", vertexInitialSpeed);
-    waterShader.setFloat("vertexSpeedRamp", vertexSpeedRamp);
-    waterShader.setFloat("vertexDrag", vertexDrag);
-    waterShader.setFloat("vertexHeight", vertexHeight);
-    waterShader.setFloat("vertexMaxPeak", vertexMaxPeak);
-    waterShader.setFloat("vertexPeakOffset", vertexPeakOffset);
-    waterShader.setInt("fragmentWaveCount", fragmentWaveCount);
-    waterShader.setFloat("fragmentSeed", fragmentSeed);
-    waterShader.setFloat("fragmentSeedIter", fragmentSeedIter);
-    waterShader.setFloat("fragmentFrequency", fragmentFrequency);
-    waterShader.setFloat("fragmentFrequencyMult", fragmentFrequencyMult);
-    waterShader.setFloat("fragmentAmplitude", fragmentAmplitude);
-    waterShader.setFloat("fragmentAmplitudeMult", fragmentAmplitudeMult);
-    waterShader.setFloat("fragmentInitialSpeed", fragmentInitialSpeed);
-    waterShader.setFloat("fragmentSpeedRamp", fragmentSpeedRamp);
-    waterShader.setFloat("fragmentDrag", fragmentDrag);
-    waterShader.setFloat("fragmentHeight", fragmentHeight);
-    waterShader.setFloat("fragmentMaxPeak", fragmentMaxPeak);
-    waterShader.setFloat("fragmentPeakOffset", fragmentPeakOffset);
-
-    drawWater(waterShader);
+    water.draw(view);
     mySkybox.Draw(skyboxShader, view, projection);
 }
 
@@ -405,51 +297,27 @@ int main(int argc, const char *argv[])
     initUniforms();
     initImGui();
 
-    mySkybox.LoadFromDir(RESOURCES_PATH "skybox/");
+    mySkybox.LoadFromDir(RESOURCES_PATH "skybox/variant1/");
 
     while (!glfwWindowShouldClose(glWindow))
     {
-        timeWater = static_cast<float>(glfwGetTime());
-        waterShader.useShaderProgram();
+        const auto timeWater = static_cast<float>(glfwGetTime());
+        water.setTime(timeWater);
+
         processMovement();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Water Parameters");
-        ImGui::SliderInt("Vertex Wave Count", &vertexWaveCount, 1, 20);
-        ImGui::SliderFloat("Vertex Seed", &vertexSeed, 0.0f, 1000.0f);
-        ImGui::SliderFloat("Vertex Seed Iter", &vertexSeedIter, 0.0f, 1000.0f);
-        ImGui::SliderFloat("Vertex Frequency", &vertexFrequency, 0.1f, 10.0f);
-        ImGui::SliderFloat("Vertex Frequency Mult", &vertexFrequencyMult, 0.1f, 10.0f);
-        ImGui::SliderFloat("Vertex Amplitude", &vertexAmplitude, 0.0f, 1.0f);
-        ImGui::SliderFloat("Vertex Amplitude Mult", &vertexAmplitudeMult, 0.0f, 1.0f);
-        ImGui::SliderFloat("Vertex Initial Speed", &vertexInitialSpeed, 0.0f, 10.0f);
-        ImGui::SliderFloat("Vertex Speed Ramp", &vertexSpeedRamp, 0.0f, 10.0f);
-        ImGui::SliderFloat("Vertex Drag", &vertexDrag, 0.0f, 10.0f);
-        ImGui::SliderFloat("Vertex Height", &vertexHeight, 0.0f, 10.0f);
-        ImGui::SliderFloat("Vertex Max Peak", &vertexMaxPeak, 0.0f, 10.0f);
-        ImGui::SliderFloat("Vertex Peak Offset", &vertexPeakOffset, 0.0f, 10.0f);
-        ImGui::SliderInt("Fragment Wave Count", &fragmentWaveCount, 1, 50);
-        ImGui::SliderFloat("Fragment Seed", &fragmentSeed, 0.0f, 1000.0f);
-        ImGui::SliderFloat("Fragment Seed Iter", &fragmentSeedIter, 0.0f, 1000.0f);
-        ImGui::SliderFloat("Fragment Frequency", &fragmentFrequency, 0.1f, 10.0f);
-        ImGui::SliderFloat("Fragment Frequency Mult", &fragmentFrequencyMult, 0.1f, 10.0f);
-        ImGui::SliderFloat("Fragment Amplitude", &fragmentAmplitude, 0.0f, 1.0f);
-        ImGui::SliderFloat("Fragment Amplitude Mult", &fragmentAmplitudeMult, 0.0f, 1.0f);
-        ImGui::SliderFloat("Fragment Initial Speed", &fragmentInitialSpeed, 0.0f, 10.0f);
-        ImGui::SliderFloat("Fragment Speed Ramp", &fragmentSpeedRamp, 0.0f, 10.0f);
-        ImGui::SliderFloat("Fragment Drag", &fragmentDrag, 0.0f, 10.0f);
-        ImGui::SliderFloat("Fragment Height", &fragmentHeight, 0.0f, 10.0f);
-        ImGui::SliderFloat("Fragment Max Peak", &fragmentMaxPeak, 0.0f, 10.0f);
-        ImGui::SliderFloat("Fragment Peak Offset", &fragmentPeakOffset, 0.0f, 10.0f);
-        ImGui::End();
+
+        water.drawImguiControls();
+
 
         ImGui::Begin("Light Position");
-        ImGui::SliderFloat("X", &lightDir.x, -1000.0f, 1000.0f);
-        ImGui::SliderFloat("Y", &lightDir.y, -1000.0f, 1000.0f);
-        ImGui::SliderFloat("Z", &lightDir.z, -1000.0f, 1000.0f);
+        ImGui::SliderFloat("X", &lightPos.x, -1000.0f, 1000.0f);
+        ImGui::SliderFloat("Y", &lightPos.y, -1000.0f, 1000.0f);
+        ImGui::SliderFloat("Z", &lightPos.z, -1000.0f, 1000.0f);
         ImGui::End();
 
         renderScene();
@@ -465,4 +333,3 @@ int main(int argc, const char *argv[])
 
     return 0;
 }
-

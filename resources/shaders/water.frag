@@ -9,7 +9,6 @@ out vec4 fColor;
 uniform vec3 lightPos; // Light position in world space
 uniform vec3 viewPos;  // Camera position in world space
 uniform vec3 lightColor;
-uniform vec3 objectColor;
 
 uniform float time;
 uniform int fragmentWaveCount;
@@ -27,6 +26,15 @@ uniform float fragmentMaxPeak;
 uniform float fragmentPeakOffset;
 
 const float pi = 3.14159265359;
+
+uniform float ambientStrength;
+uniform vec3 ambientColor;
+uniform vec3 diffuseColor;
+uniform float shininess;
+uniform vec3 specularColor;
+
+uniform vec3 tipColor;
+uniform float tipAttenuation;
 
 vec3 fragmentFBM(vec3 v) {
     float f = fragmentFrequency;
@@ -65,24 +73,22 @@ vec3 fragmentFBM(vec3 v) {
     return result;
 }
 
-void computeLightComponents(vec3 normal, out vec3 ambient, out vec3 diffuse, out vec3 specular)
+void computeLight(vec3 normal, out vec3 color)
 {
-    // Ambient lighting
-    float ambientStrength = 0.2f;
-    ambient = ambientStrength * lightColor;
+    vec3 ambient = ambientStrength * ambientColor;
 
-    // Diffuse lighting
     vec3 lightDir = normalize(lightPos - fFragPos);
     float diff = max(dot(normal, lightDir), 0.0);
-    diffuse = diff * lightColor;
+    vec3 diffuse = diff * diffuseColor;
 
-    // Specular lighting
-    float specularStrength = 0.5f;
-    float shininess = 32.0f;
     vec3 viewDir = normalize(viewPos - fFragPos);
     vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-    specular = specularStrength * spec * lightColor;
+    float spec = 0.0;
+    vec3 halfwayDir = normalize(lightDir + viewDir);
+    spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
+    vec3 specular = specularColor * spec;
+
+    color = ambient + diffuse + specular;
 }
 
 void main()
@@ -90,10 +96,11 @@ void main()
     vec3 fbmResult = fragmentFBM(fFragPos);
     vec3 normal = normalize(vec3(fbmResult.y, 1.0, fbmResult.z));
 
-    vec3 ambient, diffuse, specular;
-    computeLightComponents(normal, ambient, diffuse, specular);
+    vec3 color;
+    computeLight(normal, color);
 
-    // Combine results
-    vec3 result = ambient + diffuse + specular;
-    fColor = vec4(result * objectColor, 1.0);
+    vec3 tip = tipColor * pow(fbmResult.x, tipAttenuation);
+    vec3 finalColor = color + tip;
+
+    fColor = vec4(finalColor, 1.0);
 }

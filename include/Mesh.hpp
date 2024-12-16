@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 
@@ -9,57 +8,61 @@
 #include <string>
 #include <vector>
 
+namespace gps
+{
 
-namespace gps {
-
-    struct Vertex {
+    struct Vertex
+    {
 
         glm::vec3 Position;
         glm::vec3 Normal;
         glm::vec2 TexCoords;
     };
 
-    struct Texture {
+    struct Texture
+    {
 
         GLuint id;
-        //ambientTexture, diffuseTexture, specularTexture
+        // ambientTexture, diffuseTexture, specularTexture
         std::string type;
         std::string path;
     };
 
-    struct Material {
+    struct Material
+    {
 
         glm::vec3 ambient;
         glm::vec3 diffuse;
         glm::vec3 specular;
     };
 
-    struct Buffers {
+    struct Buffers
+    {
         GLuint VAO;
         GLuint VBO;
         GLuint EBO;
     };
 
-    class Mesh {
+    class Mesh
+    {
 
     public:
         std::vector<Vertex> vertices;
         std::vector<GLuint> indices;
         std::vector<Texture> textures;
 
-	    Mesh(std::vector<Vertex> vertices, std::vector<GLuint> indices, std::vector<Texture> textures);
+        Mesh(std::vector<Vertex> vertices, std::vector<GLuint> indices, std::vector<Texture> textures);
 
-	    Buffers getBuffers();
+        Buffers getBuffers();
 
-	    void Draw(Shader shader);
+        void Draw(Shader shader);
 
     private:
         /*  Render data  */
         Buffers buffers;
 
-	    // Initializes all the buffer objects/arrays
-	    void setupMesh();
-
+        // Initializes all the buffer objects/arrays
+        void setupMesh();
     };
 
 }

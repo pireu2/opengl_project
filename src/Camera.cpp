@@ -29,7 +29,8 @@ namespace gps
         updateCameraVectors();
     }
 
-    glm::mat4 Camera::getViewMatrix() const {
+    glm::mat4 Camera::getViewMatrix() const
+    {
         return lookAt(Position, Position + Front, Up);
     }
 
@@ -77,6 +78,11 @@ namespace gps
     glm::vec3 Camera::getCameraPosition() const
     {
         return Position;
+    }
+
+    float Camera::getZoom() const
+    {
+        return Zoom;
     }
 
     void Camera::updateCameraVectors()

@@ -32,7 +32,7 @@ namespace gps
         void setFloat(const std::string &name, float value) const;
 
     private:
-        static std::string readShaderFile(const std::string& fileName);
+        static std::string readShaderFile(const std::string &fileName);
         static void shaderCompileLog(GLuint shaderId);
         void shaderLinkLog(GLuint shaderProgramId) const;
     };

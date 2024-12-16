@@ -10,7 +10,7 @@
 
 namespace gps
 {
-    std::string Shader::readShaderFile(const std::string& fileName)
+    std::string Shader::readShaderFile(const std::string &fileName)
     {
 
         std::ifstream shaderFile;
