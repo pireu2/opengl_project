@@ -11,24 +11,21 @@
 namespace gps {
     
     SkyBox::SkyBox()
-    {
-        
-    }
+    = default;
     
-    void SkyBox::Load(std::vector<const GLchar*> cubeMapFaces)
+    void SkyBox::Load(const std::vector<const GLchar*> &cubeMapFaces)
     {
         cubemapTexture = LoadSkyBoxTextures(cubeMapFaces);
         InitSkyBox();
     }
     
-    void SkyBox::Draw(gps::Shader shader, glm::mat4 viewMatrix, glm::mat4 projectionMatrix)
-    {
+    void SkyBox::Draw(const Shader shader, const glm::mat4 &viewMatrix, glm::mat4 projectionMatrix) const {
         shader.useShaderProgram();
         
         //set the view and projection matrices
         glm::mat4 transformedView = glm::mat4(glm::mat3(viewMatrix));
-        glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(transformedView));
-        glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+        glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "view"), 1, GL_FALSE, value_ptr(transformedView));
+        glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "projection"), 1, GL_FALSE, value_ptr(projectionMatrix));
         
         glDepthFunc(GL_LEQUAL);
         
@@ -41,23 +38,42 @@ namespace gps {
         
         glDepthFunc(GL_LESS);
     }
+
+    void SkyBox::LoadFromDir(const std::string& filePath) {
+        const std::vector facePaths = {
+            filePath + "right.tga",
+            filePath + "left.tga",
+            filePath + "top.tga",
+            filePath + "bottom.tga",
+            filePath + "back.tga",
+            filePath + "front.tga"
+        };
+
+        std::vector<const GLchar*> faces;
+        faces.reserve(facePaths.size());
+        for (const auto& facePath : facePaths) {
+            faces.push_back(facePath.c_str());
+        }
+
+        this->Load(faces);
+    }
+
     
-    GLuint SkyBox::LoadSkyBoxTextures(std::vector<const GLchar*> skyBoxFaces)
+    GLuint SkyBox::LoadSkyBoxTextures(const std::vector<const GLchar*> &cubeMapFaces)
     {
         GLuint textureID;
         glGenTextures(1, &textureID);
         glActiveTexture(GL_TEXTURE0);
         
         int width,height, n;
-        unsigned char* image;
-        int force_channels = 3;
-        
+
         glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
-        for(GLuint i = 0; i < skyBoxFaces.size(); i++)
+        for(GLuint i = 0; i < cubeMapFaces.size(); i++)
         {
-            image = stbi_load(skyBoxFaces[i], &width, &height, &n, force_channels);
+            constexpr int force_channels = 3;
+            const unsigned char *image = stbi_load(cubeMapFaces[i], &width, &height, &n, force_channels);
             if (!image) {
-                fprintf(stderr, "ERROR: could not load %s\n", skyBoxFaces[i]);
+                fprintf(stderr, "ERROR: could not load %s\n", cubeMapFaces[i]);
                 return false;
             }
             glTexImage2D(
@@ -77,7 +93,7 @@ namespace gps {
     
     void SkyBox::InitSkyBox()
     {
-        GLfloat skyboxVertices[] = {
+        constexpr GLfloat skyboxVertices[] = {
             -1.0f,  1.0f, -1.0f,
             -1.0f, -1.0f, -1.0f,
             1.0f, -1.0f, -1.0f,
@@ -121,7 +137,7 @@ namespace gps {
             1.0f, -1.0f,  1.0f
         };
         
-        glGenVertexArrays(1, &(this->skyboxVAO));
+        glGenVertexArrays(1, &this->skyboxVAO);
         glGenBuffers(1, &skyboxVBO);
         
         glBindVertexArray(skyboxVAO);
@@ -129,12 +145,12 @@ namespace gps {
         glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
         
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), static_cast<GLvoid *>(nullptr));
         
         glBindVertexArray(0);
     }
     
-    GLuint SkyBox::GetTextureId()
+    GLuint SkyBox::GetTextureId() const
     {
         return cubemapTexture;
     }

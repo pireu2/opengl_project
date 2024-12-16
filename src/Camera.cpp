@@ -3,7 +3,7 @@
 namespace gps
 {
 
-    Camera::Camera(glm::vec3 position, glm::vec3 up, float yaw, float pitch)
+    Camera::Camera(const glm::vec3 position, glm::vec3 up, float yaw, float pitch)
     {
         Position = position;
         WorldUp = up;
@@ -16,7 +16,7 @@ namespace gps
         updateCameraVectors();
     }
 
-    Camera::Camera(float posX, float posY, float posZ, float upX, float upY, float upZ, float yaw, float pitch)
+    Camera::Camera(const float posX, const float posY, const float posZ, const float upX, const float upY, const float upZ, const float yaw, const float pitch)
     {
         Position = glm::vec3(posX, posY, posZ);
         WorldUp = glm::vec3(upX, upY, upZ);
@@ -29,14 +29,13 @@ namespace gps
         updateCameraVectors();
     }
 
-    glm::mat4 Camera::getViewMatrix()
-    {
-        return glm::lookAt(Position, Position + Front, Up);
+    glm::mat4 Camera::getViewMatrix() const {
+        return lookAt(Position, Position + Front, Up);
     }
 
-    void Camera::ProcessKeyboard(MOVE_DIRECTION direction, float deltaTime)
+    void Camera::ProcessKeyboard(const MOVE_DIRECTION direction, const float speed)
     {
-        float velocity = MovementSpeed * deltaTime;
+        float velocity = MovementSpeed * speed;
         if (direction == FORWARD)
             Position += Front * velocity;
         if (direction == BACKWARD)
@@ -47,7 +46,7 @@ namespace gps
             Position += Right * velocity;
     }
 
-    void Camera::ProcessMouseMovement(float xoffset, float yoffset, bool constrainPitch)
+    void Camera::ProcessMouseMovement(float xoffset, float yoffset, const bool constantPitch)
     {
         xoffset *= MouseSensitivity;
         yoffset *= MouseSensitivity;
@@ -55,7 +54,7 @@ namespace gps
         Yaw += xoffset;
         Pitch += yoffset;
 
-        if (constrainPitch)
+        if (constantPitch)
         {
             if (Pitch > 89.0f)
                 Pitch = 89.0f;
@@ -66,9 +65,9 @@ namespace gps
         updateCameraVectors();
     }
 
-    void Camera::ProcessMouseScroll(float yoffset)
+    void Camera::ProcessMouseScroll(const float yoffset)
     {
-        Zoom -= (float)yoffset;
+        Zoom -= static_cast<float>(yoffset);
         if (Zoom < 1.0f)
             Zoom = 1.0f;
         if (Zoom > 45.0f)
@@ -86,9 +85,9 @@ namespace gps
         front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
         front.y = sin(glm::radians(Pitch));
         front.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
-        Front = glm::normalize(front);
-        Right = glm::normalize(glm::cross(Front, WorldUp));
-        Up = glm::normalize(glm::cross(Right, Front));
+        Front = normalize(front);
+        Right = normalize(cross(Front, WorldUp));
+        Up = normalize(cross(Right, Front));
     }
 
 }

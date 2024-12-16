@@ -2,27 +2,27 @@
 
 
 #include "Shader.hpp"
-#include <stb_image/stb_image.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <stb_image/stb_image.h>
 
 #include <vector>
-#include <stdio.h>
 
 namespace gps {
     class SkyBox
     {
     public:
         SkyBox();
-        void Load(std::vector<const GLchar*> cubeMapFaces);
-        void Draw(gps::Shader shader, glm::mat4 viewMatrix, glm::mat4 projectionMatrix);
-        GLuint GetTextureId();
+        void Load(const std::vector<const GLchar*> &cubeMapFaces);
+        void Draw(Shader shader, const glm::mat4 &viewMatrix, glm::mat4 projectionMatrix) const;
+        void LoadFromDir(const std::string& filePath);
+        [[nodiscard]] GLuint GetTextureId() const;
     private:
-        GLuint skyboxVAO;
-        GLuint skyboxVBO;
-        GLuint cubemapTexture;
-        GLuint LoadSkyBoxTextures(std::vector<const GLchar*> cubeMapFaces);
+        GLuint skyboxVAO = 0;
+        GLuint skyboxVBO = 0;
+        GLuint cubemapTexture = 0;
+        static GLuint LoadSkyBoxTextures(const std::vector<const GLchar*> &cubeMapFaces);
         void InitSkyBox();
     };
 }

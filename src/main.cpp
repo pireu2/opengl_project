@@ -14,20 +14,19 @@
 
 #include <openglDebug.h>
 
-#include "Shader.hpp"
-#include "Model3D.hpp"
-#include "Camera.hpp"
-#include "SkyBox.hpp"
+#include <Shader.hpp>
+#include <Model3D.hpp>
+#include <Camera.hpp>
+#include <SkyBox.hpp>
 
-#include <iostream>
 
 int glWindowWidth = 1920;
 int glWindowHeight = 1080;
 int retina_width, retina_height;
-GLFWwindow *glWindow = NULL;
+GLFWwindow *glWindow = nullptr;
 
-const unsigned int SHADOW_WIDTH = 2048;
-const unsigned int SHADOW_HEIGHT = 2048;
+constexpr unsigned int SHADOW_WIDTH = 2048;
+constexpr unsigned int SHADOW_HEIGHT = 2048;
 
 glm::mat4 model;
 glm::mat4 view;
@@ -83,6 +82,9 @@ float fragmentPeakOffset = 1.0f;
 gps::Model3D water;
 gps::Shader waterShader;
 
+gps::SkyBox mySkybox;
+gps::Shader skyboxShader;
+
 void windowResizeCallback(GLFWwindow *window, int width, int height)
 {
     fprintf(stdout, "window resized to width: %d , and height: %d\n", width, height);
@@ -104,8 +106,8 @@ void keyboardCallback(GLFWwindow *window, int key, int scancode, int action, int
 
 void mouseCallback(GLFWwindow *window, double xposIn, double yposIn)
 {
-    float xpos = static_cast<float>(xposIn);
-    float ypos = static_cast<float>(yposIn);
+    auto xpos = static_cast<float>(xposIn);
+    auto ypos = static_cast<float>(yposIn);
 
     if (firstMouse)
     {
@@ -116,8 +118,8 @@ void mouseCallback(GLFWwindow *window, double xposIn, double yposIn)
 
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS)
     {
-        float xoffset = xpos - lastX;
-        float yoffset = lastY - ypos;
+        const float xoffset = xpos - lastX;
+        const float yoffset = lastY - ypos;
 
         myCamera.ProcessMouseMovement(xoffset, yoffset);
     }
@@ -178,7 +180,7 @@ bool initOpenGLWindow()
 
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 
-    glWindow = glfwCreateWindow(glWindowWidth, glWindowHeight, "OpenGL Shader Example", NULL, NULL);
+    glWindow = glfwCreateWindow(glWindowWidth, glWindowHeight, "OpenGL Shader Example", nullptr, nullptr);
     if (!glWindow)
     {
         fprintf(stderr, "ERROR: could not open window with GLFW3\n");
@@ -193,19 +195,19 @@ bool initOpenGLWindow()
 
     glfwMakeContextCurrent(glWindow);
 
-    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress));
 
     glfwSwapInterval(1);
 
-    /*glEnable(GL_DEBUG_OUTPUT);
+    glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-    glDebugMessageCallback(glDebugOutput, 0);
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);*/
+    glDebugMessageCallback(glDebugOutput, nullptr);
+    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
 
     const GLubyte *renderer = glGetString(GL_RENDERER);
     const GLubyte *version = glGetString(GL_VERSION);
-    printf("Renderer: %s\n", renderer);
-    printf("OpenGL version supported %s\n", version);
+    printf("Renderer: %s\n", reinterpret_cast<const char *>(renderer));
+    printf("OpenGL version supported %s\n", reinterpret_cast<const char *>(version));
 
     glfwGetFramebufferSize(glWindow, &retina_width, &retina_height);
 
@@ -235,7 +237,10 @@ void initShaders()
 {
     waterShader.loadShader(RESOURCES_PATH "shaders/water.vert", RESOURCES_PATH "shaders/water.frag");
     waterShader.useShaderProgram();
+    skyboxShader.loadShader(RESOURCES_PATH "shaders/skyboxShader.vert", RESOURCES_PATH "shaders/skyboxShader.frag");
+    skyboxShader.useShaderProgram();
 }
+
 
 void initUniforms()
 {
@@ -246,21 +251,28 @@ void initUniforms()
 
     normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
 
-    projection = glm::perspective(glm::radians(45.0f), (float)retina_width / (float)retina_height, 0.1f, 10000.0f);
+    projection = glm::perspective(glm::radians(45.0f), static_cast<float>(retina_width) / static_cast<float>(retina_height), 0.1f, 10000.0f);
 
     lightDir = glm::vec3(-400.0f, 500.0f, 1000.0f);
 
     lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+
+    skyboxShader.useShaderProgram();
+    skyboxShader.setMat4("view", view);
+    skyboxShader.setMat4("projection", projection);
 
     waterShader.useShaderProgram();
     waterShader.setMat4("model", model);
     waterShader.setMat4("view", view);
     waterShader.setMat3("normalMatrix", normalMatrix);
 
+    auto cameraPosition = myCamera.getCameraPosition();
+    auto objectColor = glm::vec3(0.0f, 0.5f, 1.0f);
+
     waterShader.setVec3("lightPos", lightDir);
-    waterShader.setVec3("viewPos", myCamera.getCameraPosition());
+    waterShader.setVec3("viewPos", cameraPosition);
     waterShader.setVec3("lightColor", lightColor);
-    waterShader.setVec3("objectColor", glm::vec3(0.0f, 0.5f, 1.0f));
+    waterShader.setVec3("objectColor", objectColor);
 
 
     waterShader.setInt("vertexWaveCount", vertexWaveCount);
@@ -312,10 +324,15 @@ void renderScene()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     view = myCamera.getViewMatrix();
+    auto cameraPosition = myCamera.getCameraPosition();
+
+    skyboxShader.useShaderProgram();
+    skyboxShader.setMat4("projection", projection);
+    skyboxShader.setMat4("view", view);
 
     waterShader.useShaderProgram();
     waterShader.setMat4("view", view);
-    waterShader.setVec3("viewPos", myCamera.getCameraPosition());
+    waterShader.setVec3("viewPos", cameraPosition);
     waterShader.setVec3("lightPos", lightDir);
     waterShader.setMat4("projection", projection);
     waterShader.setFloat("time", timeWater);
@@ -346,7 +363,9 @@ void renderScene()
     waterShader.setFloat("fragmentHeight", fragmentHeight);
     waterShader.setFloat("fragmentMaxPeak", fragmentMaxPeak);
     waterShader.setFloat("fragmentPeakOffset", fragmentPeakOffset);
+
     drawWater(waterShader);
+    mySkybox.Draw(skyboxShader, view, projection);
 }
 
 void initImGui()
@@ -354,6 +373,8 @@ void initImGui()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(glWindow, true);
     ImGui_ImplOpenGL3_Init("#version 410");
@@ -384,9 +405,11 @@ int main(int argc, const char *argv[])
     initUniforms();
     initImGui();
 
+    mySkybox.LoadFromDir(RESOURCES_PATH "skybox/");
+
     while (!glfwWindowShouldClose(glWindow))
     {
-        timeWater = (float)glfwGetTime();
+        timeWater = static_cast<float>(glfwGetTime());
         waterShader.useShaderProgram();
         processMovement();
 
@@ -442,3 +465,4 @@ int main(int argc, const char *argv[])
 
     return 0;
 }
+
