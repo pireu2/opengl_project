@@ -59,10 +59,10 @@ vec3 fragmentFBM(vec3 v) {
         seed += fragmentSeedIter;
     }
 
-    vec3 output = vec3(h, n.x, n.y) / amplitudeSum;
-    output.x *= fragmentHeight;
+    vec3 result = vec3(h, n.x, n.y) / amplitudeSum;
+    result.x *= fragmentHeight;
 
-    return output;
+    return result;
 }
 
 void computeLightComponents(vec3 normal, out vec3 ambient, out vec3 diffuse, out vec3 specular)

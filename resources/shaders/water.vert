@@ -60,10 +60,10 @@ vec3 vertexFBM(vec3 v) {
         seed += vertexSeedIter;
     }
 
-    vec3 output = vec3(h, n.x, n.y) / amplitudeSum;
-    output.x *= vertexHeight;
+    vec3 result = vec3(h, n.x, n.y) / amplitudeSum;
+    result.x *= vertexHeight;
 
-    return output;
+    return result;
 }
 
 
