@@ -32,9 +32,18 @@ uniform vec3 ambientColor;
 uniform vec3 diffuseColor;
 uniform float shininess;
 uniform vec3 specularColor;
+uniform float mixStrength;
 
 uniform vec3 tipColor;
 uniform float tipAttenuation;
+
+uniform samplerCube skyboxTex;
+
+uniform float fresnelNormalStrength;
+uniform float fresnelShininess;
+uniform float fresnelBias;
+uniform float fresnelStrength;
+uniform vec3 fresnelColor;
 
 vec3 fragmentFBM(vec3 v) {
     float f = fragmentFrequency;
@@ -73,22 +82,20 @@ vec3 fragmentFBM(vec3 v) {
     return result;
 }
 
-void computeLight(vec3 normal, out vec3 color)
+void computeLight(vec3 normal, out vec3 ambient, out vec3 diffuse, out vec3 specular)
 {
-    vec3 ambient = ambientStrength * ambientColor;
+    ambient = ambientStrength * ambientColor;
 
     vec3 lightDir = normalize(lightPos - fFragPos);
     float diff = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = diff * diffuseColor;
+    diffuse = diff * diffuseColor;
 
     vec3 viewDir = normalize(viewPos - fFragPos);
     vec3 reflectDir = reflect(-lightDir, normal);
     float spec = 0.0;
     vec3 halfwayDir = normalize(lightDir + viewDir);
     spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
-    vec3 specular = specularColor * spec;
-
-    color = ambient + diffuse + specular;
+    specular = specularColor * spec;
 }
 
 void main()
@@ -96,11 +103,27 @@ void main()
     vec3 fbmResult = fragmentFBM(fFragPos);
     vec3 normal = normalize(vec3(fbmResult.y, 1.0, fbmResult.z));
 
-    vec3 color;
-    computeLight(normal, color);
+    vec3 ambient, diffuse, specular;
+    computeLight(normal, ambient, diffuse, specular);
 
     vec3 tip = tipColor * pow(fbmResult.x, tipAttenuation);
-    vec3 finalColor = color + tip;
+
+    vec3 viewDir = normalize(viewPos - fFragPos);
+    vec3 reflectedDir = reflect(-viewDir, normal);
+    vec3 skyboxColor = texture(skyboxTex, reflectedDir).rgb;
+
+    vec3 fresnelNormal = normal;
+    fresnelNormal.xz *= fresnelNormalStrength;
+    fresnelNormal = normalize(fresnelNormal);
+    float base = 1.0 - dot(viewDir, fresnelNormal);
+    float exponential = pow(base, fresnelShininess);
+    float R = exponential + fresnelBias * (1.0 - exponential);
+    R *= fresnelStrength;
+    vec3 fresnel = fresnelColor * R;
+
+    // Apply Fresnel effect to specular and mix with skybox color
+    vec3 finalColor = ambient + R * (diffuse + specular) + tip;
+    finalColor = mix(finalColor, skyboxColor, mixStrength * R);
 
     fColor = vec4(finalColor, 1.0);
 }

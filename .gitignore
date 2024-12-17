@@ -10,6 +10,9 @@ CMakeSettings.json
 *.jpg
 *.mtl
 !resources/objects/water/water.obj
-!resources/skybox/varian1/*.png
-!resources/skybox/varian2/*.png
-!resources/skybox/varian3/*.png
+!/resources/skybox/nx.png
+!/resources/skybox/ny.png
+!/resources/skybox/nz.png
+!/resources/skybox/px.png
+!/resources/skybox/py.png
+!/resources/skybox/pz.png

@@ -43,6 +43,13 @@ namespace gps
         float ambientStrength = 0.365f;
         float shininess = 68.0f;
         float tipAttenuation = 5.0f;
+        float mixStrength = 0.8f;
+
+        float fresnelNormalStrength = 0.2f;
+        float fresnelShininess = 5.0f;
+        float fresnelBias = 0.5f;
+        float fresnelStrength = 0.9f;
+        glm::vec3 fresnelColor = glm::vec3(1.0f, 1.0f, 1.0f);
 
         float timeWater = 0.0f;
 

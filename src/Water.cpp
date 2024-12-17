@@ -52,6 +52,14 @@ namespace gps
 
         shader.setFloat("tipAttenuation", tipAttenuation);
         shader.setVec3("tipColor", tipColor);
+        shader.setFloat("mixStrength", mixStrength);
+
+        shader.setInt("skyboxTex", 2);
+        shader.setFloat("fresnelNormalStrength", fresnelNormalStrength);
+        shader.setFloat("fresnelShininess", fresnelShininess);
+        shader.setFloat("fresnelBias", fresnelBias);
+        shader.setFloat("fresnelStrength", fresnelStrength);
+        shader.setVec3("fresnelColor", fresnelColor);
     }
 
     void Water::setUniforms(glm::mat4 view, glm::mat4 projection, glm::vec3 lightPos, glm::vec3 viewPos)
@@ -99,6 +107,13 @@ namespace gps
         shader.setFloat("shininess", shininess);
         shader.setFloat("tipAttenuation", tipAttenuation);
         shader.setVec3("tipColor", tipColor);
+        shader.setFloat("mixStrength", mixStrength);
+
+        shader.setFloat("fresnelNormalStrength", fresnelNormalStrength);
+        shader.setFloat("fresnelShininess", fresnelShininess);
+        shader.setFloat("fresnelBias", fresnelBias);
+        shader.setFloat("fresnelStrength", fresnelStrength);
+        shader.setVec3("fresnelColor", fresnelColor);
     }
 
     void Water::drawImguiControls()
@@ -140,6 +155,15 @@ namespace gps
         ImGui::SliderFloat("Shininess", &shininess, 0.0f, 256.0f);
         ImGui::ColorEdit3("Tip Color", (float *)&tipColor);
         ImGui::SliderFloat("Tip Attenuation", &tipAttenuation, 0.0f, 10.0f);
+        ImGui::SliderFloat("Mix Strength", &mixStrength, 0.0f, 1.0f);
+        ImGui::End();
+
+        ImGui::Begin("Fresnel Properties");
+        ImGui::SliderFloat("Fresnel Normal Strength", &fresnelNormalStrength, 0.0f, 1.0f);
+        ImGui::SliderFloat("Fresnel Shininess", &fresnelShininess, 0.0f, 10.0f);
+        ImGui::SliderFloat("Fresnel Bias", &fresnelBias, 0.0f, 1.0f);
+        ImGui::SliderFloat("Fresnel Strength", &fresnelStrength, 0.0f, 1.0f);
+        ImGui::ColorEdit3("Fresnel Color", (float *)&fresnelColor);
         ImGui::End();
     }
 
