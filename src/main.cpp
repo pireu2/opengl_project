@@ -52,6 +52,11 @@ float lastX, lastY;
 
 gps::Water water;
 gps::Atmosphere atmosphere;
+gps::Model3D ground;
+gps::Shader groundShader;
+
+gps::Model3D nanosuit;
+
 
 gps::SkyBox mySkybox;
 gps::Shader skyboxShader;
@@ -218,6 +223,7 @@ void initOpenGLState()
 void initObjects()
 {
     water.loadModel(RESOURCES_PATH "objects/water/water.obj");
+    ground.LoadModel(RESOURCES_PATH "objects/ground/ground.obj");
 }
 
 void initShaders()
@@ -226,6 +232,8 @@ void initShaders()
     atmosphere.loadShader(RESOURCES_PATH "shaders/atmosphere.vert", RESOURCES_PATH "shaders/atmosphere.frag");
     skyboxShader.loadShader(RESOURCES_PATH "shaders/skyboxShader.vert", RESOURCES_PATH "shaders/skyboxShader.frag");
     skyboxShader.useShaderProgram();
+    groundShader.loadShader(RESOURCES_PATH "shaders/ground.vert", RESOURCES_PATH "shaders/ground.frag");
+    groundShader.useShaderProgram();
 }
 
 void initUniforms()
@@ -250,6 +258,14 @@ void initUniforms()
     const auto cameraPosition = myCamera.getCameraPosition();
 
     water.initUniforms(model, view, normalMatrix, lightPos, lightColor, cameraPosition);
+
+    groundShader.useShaderProgram();
+    groundShader.setMat4("model", model);
+    groundShader.setMat4("view", view);
+    groundShader.setMat4("projection", projection);
+    groundShader.setMat3("normalMatrix", normalMatrix);
+    groundShader.setVec3("lightPos", lightPos);
+    groundShader.setVec3("lightColor", lightColor);
 }
 
 void initFrameBuffer() {
@@ -315,7 +331,15 @@ void renderScene() {
 
     view = myCamera.getViewMatrix();
     projection = glm::perspective(glm::radians(myCamera.getZoom()), static_cast<float>(retina_width) / static_cast<float>(retina_height), 0.1f, 10000.0f);
+    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
     const auto cameraPosition = myCamera.getCameraPosition();
+
+    // Render ground
+    groundShader.useShaderProgram();
+    groundShader.setMat4("view", view);
+    groundShader.setMat4("projection", projection);
+    groundShader.setMat3("normalMatrix", value_ptr(normalMatrix));
+    ground.Draw(groundShader);
 
     // Render Skybox
     skyboxShader.useShaderProgram();
@@ -390,6 +414,7 @@ int main(int argc, const char *argv[])
     initUniforms();
     initImGui();
     initFrameBuffer();
+
 
 
     while (!glfwWindowShouldClose(glWindow))
