@@ -9,7 +9,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <imgui.h>
-#include <backends/imgui_impl_glfw.h>ßßßßßßß
+#include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 
 #include <openglDebug.h>
@@ -19,6 +19,7 @@
 #include <Camera.hpp>
 #include <SkyBox.hpp>
 #include <Water.hpp>
+#include <Atmosphere.hpp>
 
 int glWindowWidth = 1920;
 int glWindowHeight = 1080;
@@ -50,25 +51,10 @@ float lastX, lastY;
 
 
 gps::Water water;
+gps::Atmosphere atmosphere;
 
 gps::SkyBox mySkybox;
 gps::Shader skyboxShader;
-
-gps::Shader fogShader;
-float fogDensity = 0.5f;
-float fogOffset = 3555.0f;
-float fogHeight = 500.0f;
-
-float fogAttenuation = 1.0f;
-glm::vec3 fogColor = glm::vec3(1.0f, 0.95f, 0.9f);
-float distanceFog = 3560.0f;
-
-glm::vec3 sunColor = glm::vec3(1.0f, 0.7f, 0.0f);
-glm::vec3 sunDirection = glm::vec3(-0.024f, -0.062f, 1.0f);
-
-
-float skyboxSpeed = 0.05f;
-glm::vec3 skyboxDirection = glm::vec3(0.0f, 1.0f, 0.0f);
 
 
 unsigned int framebuffer;
@@ -237,10 +223,9 @@ void initObjects()
 void initShaders()
 {
     water.loadShader(RESOURCES_PATH "shaders/water.vert", RESOURCES_PATH "shaders/water.frag");
+    atmosphere.loadShader(RESOURCES_PATH "shaders/atmosphere.vert", RESOURCES_PATH "shaders/atmosphere.frag");
     skyboxShader.loadShader(RESOURCES_PATH "shaders/skyboxShader.vert", RESOURCES_PATH "shaders/skyboxShader.frag");
     skyboxShader.useShaderProgram();
-    fogShader.loadShader(RESOURCES_PATH "shaders/fog.vert", RESOURCES_PATH "shaders/fog.frag");
-    fogShader.useShaderProgram();
 }
 
 void initUniforms()
@@ -296,8 +281,7 @@ void initFrameBuffer() {
 void renderQuad() {
     if (quadVAO == 0)
     {
-        float quadVertices[] = {
-            // positions        // texture Coords
+        constexpr float quadVertices[] = {
             -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
             -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
              1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
@@ -314,7 +298,7 @@ void renderQuad() {
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void *>(3 * sizeof(float)));
     }
     glBindVertexArray(quadVAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -350,34 +334,19 @@ void renderScene() {
 
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // Update and use fog shader
-    fogShader.useShaderProgram();
-    fogShader.setFloat("fogDensity", fogDensity);
-    fogShader.setVec3("fogColor", fogColor);
-    fogShader.setFloat("fogOffset", fogOffset);
-    fogShader.setVec3("sunColor", sunColor);
-    fogShader.setVec3("sunDirection", sunDirection);
-    fogShader.setFloat("fogHeight", fogHeight);
-    fogShader.setFloat("fogAttenuation", fogAttenuation);
-    fogShader.setFloat("skyboxSpeed", skyboxSpeed);
-    fogShader.setVec3("skyboxDirection", skyboxDirection);
-    fogShader.setMat4("cameraInvViewProjection", glm::value_ptr(glm::inverse(projection * view)));
-    fogShader.setVec3("cameraPos", glm::value_ptr(cameraPosition));
-    fogShader.setFloat("distanceFog", distanceFog);
-    fogShader.setFloat("time", static_cast<float>(glfwGetTime()));
+    atmosphere.setUniforms(view, projection, cameraPosition, static_cast<float>(glfwGetTime()));
 
-    // Bind textures and set uniforms
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textureColorBuffer);
-    fogShader.setInt("scene", 0);
+    atmosphere.setSceneTexture(0);
 
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, depthTexture);
-    fogShader.setInt("depthTexture", 1);
+    atmosphere.setDepthTexture(1);
 
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_CUBE_MAP, mySkybox.GetTextureId());
-    fogShader.setInt("skyboxTex", 2);
+    atmosphere.setSkyboxTexture(2);
 
     renderQuad();
 }
@@ -436,32 +405,7 @@ int main(int argc, const char *argv[])
 
 
         water.drawImguiControls();
-
-
-        // ImGui::Begin("Light Position");
-        // ImGui::SliderFloat("X", &lightPos.x, -1000.0f, 1000.0f);
-        // ImGui::SliderFloat("Y", &lightPos.y, -1000.0f, 1000.0f);
-        // ImGui::SliderFloat("Z", &lightPos.z, -1000.0f, 1000.0f);
-        // ImGui::End();
-        //
-        //
-        // ImGui::Begin("Fog Parameters");
-        // ImGui::SliderFloat("Fog Density", &fogDensity, 0.0f, 10.0f);
-        // ImGui::ColorEdit3("Fog Color", (float *)&fogColor);
-        // ImGui::SliderFloat("Fog Offset", &fogOffset, 0.0f, 4000.0f);
-        // ImGui::SliderFloat("Fog Height", &fogHeight, 0.0f, 1000.0f);
-        // ImGui::SliderFloat("Fog Attenuation", &fogAttenuation, 0.0f, 1.0f);
-        // ImGui::SliderFloat("Distance Fog", &distanceFog, 0.0f, 4000.0f);
-        // ImGui::ColorEdit3("Sun Color", (float *)&sunColor);
-        // ImGui::SliderFloat("Sun Direction X", &sunDirection.x, -1.0f, 1.0f);
-        // ImGui::SliderFloat("Sun Direction Y", &sunDirection.y, -1.0f, 1.0f);
-        // ImGui::SliderFloat("Sun Direction Z", &sunDirection.z, -1.0f, 1.0f);
-        // ImGui::SliderFloat("Skybox Speed", &skyboxSpeed, 0.0f, 1.0f);
-        // ImGui::SliderFloat("Skybox Direction X", &skyboxDirection.x, -1.0f, 1.0f);
-        // ImGui::SliderFloat("Skybox Direction Y", &skyboxDirection.y, -1.0f, 1.0f);
-        // ImGui::SliderFloat("Skybox Direction Z", &skyboxDirection.z, -1.0f, 1.0f);
-        //
-        // ImGui::End();
+        atmosphere.drawImguiControls();
 
         renderScene();
 
