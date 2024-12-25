@@ -90,4 +90,5 @@ void GLAPIENTRY glDebugOutput(GLenum source,
         std::cout << "Severity: notification";
         break;
     };
+    std::cout << std::endl;
 }

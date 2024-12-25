@@ -18,15 +18,12 @@ uniform float heightScale;
 
 void main()
 {
-    // Compute eye space coordinates
     fPosEye = view * model * vec4(vPosition, 1.0f);
     fNormal = normalize(normalMatrix * vNormal);
     fTexCoords = vTexCoords;
 
-    // Get height from heightmap and scale it
     float h = texture(heightMap, vTexCoords).r * heightScale;
 
-    // Apply height to the vertex position
     vec3 newPosition = vec3(vPosition.x, h, vPosition.z);
     gl_Position = projection * view * model * vec4(newPosition, 1.0f);
 }

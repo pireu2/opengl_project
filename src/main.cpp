@@ -54,10 +54,12 @@ float lastX, lastY;
 
 gps::Water water;
 gps::Atmosphere atmosphere;
+
 gps::Model3D ground;
 gps::Shader groundShader;
 
-gps::Model3D nanosuit;
+gps::Model3D grass;
+gps::Shader grassShader;
 
 
 gps::SkyBox mySkybox;
@@ -71,6 +73,7 @@ unsigned int textureColorBuffer;
 unsigned int rbo;
 
 unsigned int heightMapTexture;
+unsigned int grassTexture;
 
 unsigned int depthTexture;
 
@@ -224,17 +227,22 @@ void initOpenGLState()
     glFrontFace(GL_CCW);     // GL_CCW for counter clock-wise
 
     glEnable(GL_FRAMEBUFFER_SRGB);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void initObjects()
 {
     water.loadModel(RESOURCES_PATH "objects/water/water.obj");
     ground.LoadModel(RESOURCES_PATH "objects/ground/ground.obj");
+    grass.LoadModel(RESOURCES_PATH "objects/grass/grass.obj");
 }
 
-void initHeightMapTexture()
+void initTextures()
 {
     heightMapTexture = gps::Model3D::ReadTextureFromFile(RESOURCES_PATH "textures/heightmap.png");
+    grassTexture = gps::Model3D::ReadTextureFromFile(RESOURCES_PATH "textures/grass.png", 1);
 }
 
 void initShaders()
@@ -245,6 +253,8 @@ void initShaders()
     skyboxShader.useShaderProgram();
     groundShader.loadShader(RESOURCES_PATH "shaders/ground.vert", RESOURCES_PATH "shaders/ground.frag");
     groundShader.useShaderProgram();
+    grassShader.loadShader(RESOURCES_PATH "shaders/grass.vert", RESOURCES_PATH "shaders/grass.frag");
+    grassShader.useShaderProgram();
 }
 
 void initUniforms()
@@ -258,7 +268,7 @@ void initUniforms()
 
     projection = glm::perspective(glm::radians(myCamera.getZoom()), static_cast<float>(retina_width) / static_cast<float>(retina_height), 0.1f, 10000.0f);
 
-    lightPos = glm::vec3(6.622f, 218.543f, -515.225f);
+    lightPos = glm::vec3(6.622f, 1000.0f, -515.225f);
 
     lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 
@@ -277,6 +287,12 @@ void initUniforms()
     groundShader.setMat3("normalMatrix", normalMatrix);
     groundShader.setVec3("lightPos", lightPos);
     groundShader.setVec3("lightColor", lightColor);
+
+    grassShader.useShaderProgram();
+    grassShader.setMat4("model", model);
+    grassShader.setMat4("view", view);
+    grassShader.setMat4("projection", projection);
+    grassShader.setMat3("normalMatrix", normalMatrix);
 }
 
 void initFrameBuffer() {
@@ -346,18 +362,32 @@ void renderScene() {
     const auto cameraPosition = myCamera.getCameraPosition();
 
     // Render ground
-
-
     groundShader.useShaderProgram();
     groundShader.setMat4("view", view);
     groundShader.setMat4("projection", projection);
     groundShader.setMat3("normalMatrix", value_ptr(normalMatrix));
     groundShader.setFloat("heightScale", heightScale);
-    glActiveTexture(GL_TEXTURE5);
+    groundShader.setVec3("lightPos", lightPos);
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, heightMapTexture);
-    groundShader.setInt("heightMap", 5);
-
+    groundShader.setInt("heightMap", 1);
     ground.Draw(groundShader);
+
+    // Render Grass
+    glDisable(GL_CULL_FACE);
+    grassShader.useShaderProgram();
+    grassShader.setMat4("view", view);
+    grassShader.setMat4("projection", projection);
+    grassShader.setMat3("normalMatrix", value_ptr(normalMatrix));
+    grassShader.setFloat("heightScale", heightScale);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, heightMapTexture);
+    grassShader.setInt("heightMap", 1);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, grassTexture);
+    grassShader.setInt("grassTexture", 2);
+    grass.Draw(grassShader);
+    glEnable(GL_CULL_FACE);
 
     // Render Skybox
     skyboxShader.useShaderProgram();
@@ -432,7 +462,7 @@ int main(int argc, const char *argv[])
     initUniforms();
     initImGui();
     initFrameBuffer();
-    initHeightMapTexture();
+    initTextures();
 
 
 
@@ -450,6 +480,11 @@ int main(int argc, const char *argv[])
 
         water.drawImguiControls();
         atmosphere.drawImguiControls();
+
+        ImGui::Begin("Light Position");
+        ImGui::DragFloat3("Light Position", value_ptr(lightPos), 1.0f, -1000.0f, 1000.0f);
+        ImGui::End();
+
         ImGui::Begin("Terrain Map");
         ImGui::DragFloat("Height Scale", &heightScale, 0.1f, 0.0f, 100.0f);
         ImGui::End();

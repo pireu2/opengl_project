@@ -24,7 +24,7 @@ namespace gps
 
         void Draw(Shader shaderProgram);
 
-        static GLuint ReadTextureFromFile(const char *file_name);
+        static GLuint ReadTextureFromFile(const char *file_name, int transparent = 0);
     private:
         // Component meshes - group of objects
         std::vector<Mesh> meshes;
