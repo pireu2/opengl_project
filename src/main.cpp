@@ -8,6 +8,8 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include <stb_image/stb_image.h>
+
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
@@ -21,8 +23,8 @@
 #include <Water.hpp>
 #include <Atmosphere.hpp>
 
-int glWindowWidth = 1920;
-int glWindowHeight = 1080;
+int glWindowWidth = 1920 * 0.8;
+int glWindowHeight = 1080 * 0.8;
 int retina_width, retina_height;
 GLFWwindow *glWindow = nullptr;
 
@@ -61,10 +63,14 @@ gps::Model3D nanosuit;
 gps::SkyBox mySkybox;
 gps::Shader skyboxShader;
 
+float heightScale = 8.0f;
+
 
 unsigned int framebuffer;
 unsigned int textureColorBuffer;
 unsigned int rbo;
+
+unsigned int heightMapTexture;
 
 unsigned int depthTexture;
 
@@ -226,6 +232,11 @@ void initObjects()
     ground.LoadModel(RESOURCES_PATH "objects/ground/ground.obj");
 }
 
+void initHeightMapTexture()
+{
+    heightMapTexture = gps::Model3D::ReadTextureFromFile(RESOURCES_PATH "textures/heightmap.png");
+}
+
 void initShaders()
 {
     water.loadShader(RESOURCES_PATH "shaders/water.vert", RESOURCES_PATH "shaders/water.frag");
@@ -335,10 +346,17 @@ void renderScene() {
     const auto cameraPosition = myCamera.getCameraPosition();
 
     // Render ground
+
+
     groundShader.useShaderProgram();
     groundShader.setMat4("view", view);
     groundShader.setMat4("projection", projection);
     groundShader.setMat3("normalMatrix", value_ptr(normalMatrix));
+    groundShader.setFloat("heightScale", heightScale);
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_2D, heightMapTexture);
+    groundShader.setInt("heightMap", 5);
+
     ground.Draw(groundShader);
 
     // Render Skybox
@@ -414,6 +432,7 @@ int main(int argc, const char *argv[])
     initUniforms();
     initImGui();
     initFrameBuffer();
+    initHeightMapTexture();
 
 
 
@@ -431,6 +450,9 @@ int main(int argc, const char *argv[])
 
         water.drawImguiControls();
         atmosphere.drawImguiControls();
+        ImGui::Begin("Terrain Map");
+        ImGui::DragFloat("Height Scale", &heightScale, 0.1f, 0.0f, 100.0f);
+        ImGui::End();
 
         renderScene();
 
