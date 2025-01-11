@@ -78,5 +78,5 @@ void main()
 
     vec3 result = mix(fogColor, sceneColor.rgb, clamp(height + fogFactor, 0.0, 1.0));
 
-    FragColor = vec4(result + sun, 1.0);
+    FragColor = vec4(result, 1.0);
 }

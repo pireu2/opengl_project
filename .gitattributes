@@ -1,0 +1,2 @@
+*.obj filter=lfs diff=lfs merge=lfs -text
+resources/objects/ground/ground.obj filter=lfs diff=lfs merge=lfs -text

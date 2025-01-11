@@ -3,10 +3,12 @@
 in vec3 fNormal;
 in vec4 fPosEye;
 in vec2 fTexCoords;
+in float fHeight;
 
 out vec4 fColor;
 
 uniform sampler2D grassTexture;
+
 
 void main()
 {
@@ -17,5 +19,5 @@ void main()
         discard;
     }
 
-    fColor = colorFromTexture;
+    fColor = vec4(colorFromTexture.rgb, 1.0f);
 }

@@ -12,6 +12,8 @@ uniform	vec3 lightColor;
 
 //texture
 uniform sampler2D diffuseTexture;
+uniform sampler2D heightMap;
+uniform float heightScale;
 
 vec3 ambient;
 float ambientStrength = 0.2f;
@@ -52,12 +54,20 @@ void main()
 
     vec3 textureColor = texture(diffuseTexture, fTexCoords).rgb;
 
-    ambient *= textureColor;
-    diffuse *= textureColor;
-    specular *= textureColor;
+    float height = texture(heightMap, fTexCoords).r * heightScale;
+
+    // Define the yellow color
+    vec3 yellow = vec3(1.0f, 1.0f, 0.65f);
+
+    // Blend the texture color with yellow based on the height
+    float blendFactor = clamp(1.0f - height + 0.2f, 0.0f, 1.0f);
+    vec3 blendedColor = mix(textureColor, yellow, blendFactor);
+
+    ambient *= blendedColor;
+    diffuse *= blendedColor;
+    specular *= blendedColor;
 
     vec3 color = min((ambient + diffuse) + specular, 1.0f);
 
     fColor = vec4(color, 1.0f);
-
 }

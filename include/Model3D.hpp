@@ -25,6 +25,10 @@ namespace gps
         void Draw(Shader shaderProgram);
 
         static GLuint ReadTextureFromFile(const char *file_name, int transparent = 0);
+
+        unsigned int getVAO();
+
+        [[nodiscard]] unsigned int getVertexCount() const;
     private:
         // Component meshes - group of objects
         std::vector<Mesh> meshes;

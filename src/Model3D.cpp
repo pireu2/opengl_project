@@ -250,7 +250,8 @@ namespace gps
                 GL_UNSIGNED_BYTE,
                 image_data);
         }
-        else {
+        else
+        {
             glTexImage2D(
                 GL_TEXTURE_2D,
                 0,
@@ -264,8 +265,8 @@ namespace gps
         }
         glGenerateMipmap(GL_TEXTURE_2D);
 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glBindTexture(GL_TEXTURE_2D, 0);
@@ -293,4 +294,15 @@ namespace gps
             glDeleteVertexArrays(1, &VAO);
         }
     }
+
+    unsigned int Model3D::getVAO()
+    {
+        return meshes[0].getBuffers().VAO;
+    }
+
+    unsigned int Model3D::getVertexCount() const
+    {
+        return meshes[0].vertices.size();
+    }
+
 }

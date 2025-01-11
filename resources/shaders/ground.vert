@@ -18,12 +18,20 @@ uniform float heightScale;
 
 void main()
 {
+    vec2 texelSize = 1.0 / textureSize(heightMap, 0);
+    float heightL = texture(heightMap, vTexCoords - vec2(texelSize.x, 0.0)).r * heightScale;
+    float heightR = texture(heightMap, vTexCoords + vec2(texelSize.x, 0.0)).r * heightScale;
+    float heightD = texture(heightMap, vTexCoords - vec2(0.0, texelSize.y)).r * heightScale;
+    float heightU = texture(heightMap, vTexCoords + vec2(0.0, texelSize.y)).r * heightScale;
+
+    vec3 normal = normalize(vec3(heightL - heightR, 2.0, heightD - heightU));
+
     fPosEye = view * model * vec4(vPosition, 1.0f);
-    fNormal = normalize(normalMatrix * vNormal);
     fTexCoords = vTexCoords;
 
     float h = texture(heightMap, vTexCoords).r * heightScale;
-
     vec3 newPosition = vec3(vPosition.x, h, vPosition.z);
     gl_Position = projection * view * model * vec4(newPosition, 1.0f);
+
+    fNormal = normalize(normalMatrix * normal);
 }

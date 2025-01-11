@@ -5,10 +5,6 @@ build/
 /.vscode
 .idea/
 CMakeSettings.json
-*.obj
-*.png
-*.jpg
-*.mtl
 !resources/objects/water/water.obj
 !/resources/skybox/nx.png
 !/resources/skybox/ny.png

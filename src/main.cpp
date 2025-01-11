@@ -1,4 +1,5 @@
-﻿
+﻿#include <random>
+#include <iostream>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -23,8 +24,8 @@
 #include <Water.hpp>
 #include <Atmosphere.hpp>
 
-int glWindowWidth = 1920 * 0.8;
-int glWindowHeight = 1080 * 0.8;
+int glWindowWidth = 1920;
+int glWindowHeight = 1080;
 int retina_width, retina_height;
 GLFWwindow *glWindow = nullptr;
 
@@ -51,7 +52,6 @@ float angleY = 0.0f;
 bool firstMouse = true;
 float lastX, lastY;
 
-
 gps::Water water;
 gps::Atmosphere atmosphere;
 
@@ -61,12 +61,10 @@ gps::Shader groundShader;
 gps::Model3D grass;
 gps::Shader grassShader;
 
-
 gps::SkyBox mySkybox;
 gps::Shader skyboxShader;
 
-float heightScale = 8.0f;
-
+float heightScale = 30.0f;
 
 unsigned int framebuffer;
 unsigned int textureColorBuffer;
@@ -79,6 +77,31 @@ unsigned int depthTexture;
 
 unsigned int quadVAO = 0;
 unsigned int quadVBO;
+
+float heightThreshold = 300.f;
+float hardThreshold = 1.3f;
+float windStrength = 0.5f;
+
+std::vector<glm::vec3> generateGrassPositions(const int gridSize, const float spacing)
+{
+    std::vector<glm::vec3> positions;
+    std::default_random_engine generator;
+    std::uniform_real_distribution<float> distribution(-spacing / 2.0f, spacing / 2.0f);
+
+    for (int x = -gridSize / 2; x < gridSize / 2; ++x)
+    {
+        for (int z = -gridSize / 2; z < gridSize / 2; ++z)
+        {
+            float offsetX = distribution(generator);
+            float offsetZ = distribution(generator);
+            positions.emplace_back(x * spacing + offsetX, 0.0f, z * spacing + offsetZ);
+        }
+    }
+    return positions;
+}
+
+unsigned int instanceVBO;
+std::vector<glm::vec3> grassPositions = generateGrassPositions(600, 1.0f);
 
 void windowResizeCallback(GLFWwindow *window, int width, int height)
 {
@@ -220,11 +243,11 @@ void initOpenGLState()
     glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
     glViewport(0, 0, retina_width, retina_height);
 
-    glEnable(GL_DEPTH_TEST); // enable depth-testing
-    glDepthFunc(GL_LESS);    // depth-testing interprets a smaller value as "closer"
-    glEnable(GL_CULL_FACE);  // cull face
-    glCullFace(GL_BACK);     // cull back face
-    glFrontFace(GL_CCW);     // GL_CCW for counter clock-wise
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
 
     glEnable(GL_FRAMEBUFFER_SRGB);
 
@@ -295,7 +318,8 @@ void initUniforms()
     grassShader.setMat3("normalMatrix", normalMatrix);
 }
 
-void initFrameBuffer() {
+void initFrameBuffer()
+{
     glGenFramebuffers(1, &framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
@@ -315,24 +339,29 @@ void initFrameBuffer() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0);
 
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    glGenBuffers(1, &instanceVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+    glBufferData(GL_ARRAY_BUFFER, grassPositions.size() * sizeof(glm::vec3), &grassPositions[0], GL_STATIC_DRAW);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
         fprintf(stderr, "ERROR: Framebuffer is not complete\n");
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void renderQuad() {
+void renderQuad()
+{
     if (quadVAO == 0)
     {
         constexpr float quadVertices[] = {
-            -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
             -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-             1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+            1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
 
-            -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-             1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-             1.0f,  1.0f, 0.0f, 1.0f, 1.0f
-        };
+            -1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, 0.0f, 1.0f, 1.0f};
         glGenVertexArrays(1, &quadVAO);
         glGenBuffers(1, &quadVBO);
         glBindVertexArray(quadVAO);
@@ -348,8 +377,38 @@ void renderQuad() {
     glBindVertexArray(0);
 }
 
+void renderGrassInstances()
+{
+    glDisable(GL_CULL_FACE);
+    grassShader.useShaderProgram();
+    grassShader.setMat4("view", view);
+    grassShader.setMat4("projection", projection);
+    grassShader.setMat3("normalMatrix", value_ptr(normalMatrix));
+    grassShader.setFloat("heightScale", heightScale);
+    grassShader.setFloat("heightThreshold", heightThreshold);
+    grassShader.setFloat("hardThreshold", hardThreshold);
+    grassShader.setFloat("time", static_cast<float>(glfwGetTime()));
+    grassShader.setFloat("windStrength", windStrength);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, heightMapTexture);
+    grassShader.setInt("heightMap", 1);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, grassTexture);
+    grassShader.setInt("grassTexture", 2);
 
-void renderScene() {
+    glBindVertexArray(grass.getVAO());
+    glEnableVertexAttribArray(3);
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+    glVertexAttribDivisor(3, 1);
+    glDrawArraysInstanced(GL_TRIANGLES, 0, grass.getVertexCount(), grassPositions.size());
+    glBindVertexArray(0);
+
+    glEnable(GL_CULL_FACE);
+}
+
+void renderScene()
+{
     glViewport(0, 0, retina_width, retina_height);
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glEnable(GL_DEPTH_TEST);
@@ -374,20 +433,7 @@ void renderScene() {
     ground.Draw(groundShader);
 
     // Render Grass
-    glDisable(GL_CULL_FACE);
-    grassShader.useShaderProgram();
-    grassShader.setMat4("view", view);
-    grassShader.setMat4("projection", projection);
-    grassShader.setMat3("normalMatrix", value_ptr(normalMatrix));
-    grassShader.setFloat("heightScale", heightScale);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, heightMapTexture);
-    grassShader.setInt("heightMap", 1);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, grassTexture);
-    grassShader.setInt("grassTexture", 2);
-    grass.Draw(grassShader);
-    glEnable(GL_CULL_FACE);
+    renderGrassInstances();
 
     // Render Skybox
     skyboxShader.useShaderProgram();
@@ -464,8 +510,6 @@ int main(int argc, const char *argv[])
     initFrameBuffer();
     initTextures();
 
-
-
     while (!glfwWindowShouldClose(glWindow))
     {
         const auto timeWater = static_cast<float>(glfwGetTime());
@@ -477,7 +521,6 @@ int main(int argc, const char *argv[])
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-
         water.drawImguiControls();
         atmosphere.drawImguiControls();
 
@@ -487,6 +530,9 @@ int main(int argc, const char *argv[])
 
         ImGui::Begin("Terrain Map");
         ImGui::DragFloat("Height Scale", &heightScale, 0.1f, 0.0f, 100.0f);
+        ImGui::DragFloat("Height Threshold", &heightThreshold, 1.0f, 0.0f, 10000.0f);
+        ImGui::DragFloat("Hard Threshold", &hardThreshold, 0.1f, 0.0f, 100.0f);
+        ImGui::DragFloat("Wind Strength", &windStrength, 0.01f, 0.0f, 5.0f);
         ImGui::End();
 
         renderScene();
