@@ -10,8 +10,6 @@ uniform samplerCube skyboxTex;
 uniform float fogDensity;
 uniform float fogOffset;
 uniform vec3 fogColor;
-uniform vec3 sunColor;
-uniform vec3 sunDirection;
 uniform float fogHeight;
 uniform float fogAttenuation;
 uniform float skyboxSpeed;
@@ -72,9 +70,6 @@ void main()
 
     float fogFactor = (fogDensity / sqrt(log(2.0))) * max(0.0, viewDistance - fogOffset);
     fogFactor = exp2(-fogFactor * fogFactor);
-
-    vec3 sunDir = normalize(sunDirection);
-    vec3 sun = sunColor * pow(max(dot(viewDir, sunDir), 0.0), 1000.0);
 
     vec3 result = mix(fogColor, sceneColor.rgb, clamp(height + fogFactor, 0.0, 1.0));
 

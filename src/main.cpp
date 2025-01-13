@@ -23,6 +23,7 @@
 #include <SkyBox.hpp>
 #include <Water.hpp>
 #include <Atmosphere.hpp>
+#include <Grass.hpp>
 
 int glWindowWidth = 1920;
 int glWindowHeight = 1080;
@@ -54,15 +55,15 @@ float lastX, lastY;
 
 gps::Water water;
 gps::Atmosphere atmosphere;
+gps::Grass grass;
 
 gps::Model3D ground;
 gps::Shader groundShader;
 
-gps::Model3D grass;
-gps::Shader grassShader;
-
 gps::SkyBox mySkybox;
 gps::Shader skyboxShader;
+
+
 
 float heightScale = 30.0f;
 
@@ -71,37 +72,12 @@ unsigned int textureColorBuffer;
 unsigned int rbo;
 
 unsigned int heightMapTexture;
-unsigned int grassTexture;
 
 unsigned int depthTexture;
 
 unsigned int quadVAO = 0;
 unsigned int quadVBO;
 
-float heightThreshold = 300.f;
-float hardThreshold = 1.3f;
-float windStrength = 0.5f;
-
-std::vector<glm::vec3> generateGrassPositions(const int gridSize, const float spacing)
-{
-    std::vector<glm::vec3> positions;
-    std::default_random_engine generator;
-    std::uniform_real_distribution<float> distribution(-spacing / 2.0f, spacing / 2.0f);
-
-    for (int x = -gridSize / 2; x < gridSize / 2; ++x)
-    {
-        for (int z = -gridSize / 2; z < gridSize / 2; ++z)
-        {
-            float offsetX = distribution(generator);
-            float offsetZ = distribution(generator);
-            positions.emplace_back(x * spacing + offsetX, 0.0f, z * spacing + offsetZ);
-        }
-    }
-    return positions;
-}
-
-unsigned int instanceVBO;
-std::vector<glm::vec3> grassPositions = generateGrassPositions(600, 1.0f);
 
 void windowResizeCallback(GLFWwindow *window, int width, int height)
 {
@@ -258,14 +234,13 @@ void initOpenGLState()
 void initObjects()
 {
     water.loadModel(RESOURCES_PATH "objects/water/water.obj");
+    grass.loadModel(RESOURCES_PATH "objects/grass/grass.obj");
     ground.LoadModel(RESOURCES_PATH "objects/ground/ground.obj");
-    grass.LoadModel(RESOURCES_PATH "objects/grass/grass.obj");
 }
 
 void initTextures()
 {
     heightMapTexture = gps::Model3D::ReadTextureFromFile(RESOURCES_PATH "textures/heightmap.png");
-    grassTexture = gps::Model3D::ReadTextureFromFile(RESOURCES_PATH "textures/grass.png", 1);
 }
 
 void initShaders()
@@ -276,8 +251,8 @@ void initShaders()
     skyboxShader.useShaderProgram();
     groundShader.loadShader(RESOURCES_PATH "shaders/ground.vert", RESOURCES_PATH "shaders/ground.frag");
     groundShader.useShaderProgram();
-    grassShader.loadShader(RESOURCES_PATH "shaders/grass.vert", RESOURCES_PATH "shaders/grass.frag");
-    grassShader.useShaderProgram();
+
+    grass.setShader(RESOURCES_PATH "shaders/grass.vert", RESOURCES_PATH "shaders/grass.frag");
 }
 
 void initUniforms()
@@ -311,11 +286,7 @@ void initUniforms()
     groundShader.setVec3("lightPos", lightPos);
     groundShader.setVec3("lightColor", lightColor);
 
-    grassShader.useShaderProgram();
-    grassShader.setMat4("model", model);
-    grassShader.setMat4("view", view);
-    grassShader.setMat4("projection", projection);
-    grassShader.setMat3("normalMatrix", normalMatrix);
+    grass.initUniforms(model, view, projection, normalMatrix);
 }
 
 void initFrameBuffer()
@@ -339,9 +310,7 @@ void initFrameBuffer()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0);
 
-    glGenBuffers(1, &instanceVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glBufferData(GL_ARRAY_BUFFER, grassPositions.size() * sizeof(glm::vec3), &grassPositions[0], GL_STATIC_DRAW);
+    grass.setInstancePositions(grass.generateGrassPositions());
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
@@ -377,35 +346,6 @@ void renderQuad()
     glBindVertexArray(0);
 }
 
-void renderGrassInstances()
-{
-    glDisable(GL_CULL_FACE);
-    grassShader.useShaderProgram();
-    grassShader.setMat4("view", view);
-    grassShader.setMat4("projection", projection);
-    grassShader.setMat3("normalMatrix", value_ptr(normalMatrix));
-    grassShader.setFloat("heightScale", heightScale);
-    grassShader.setFloat("heightThreshold", heightThreshold);
-    grassShader.setFloat("hardThreshold", hardThreshold);
-    grassShader.setFloat("time", static_cast<float>(glfwGetTime()));
-    grassShader.setFloat("windStrength", windStrength);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, heightMapTexture);
-    grassShader.setInt("heightMap", 1);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, grassTexture);
-    grassShader.setInt("grassTexture", 2);
-
-    glBindVertexArray(grass.getVAO());
-    glEnableVertexAttribArray(3);
-    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
-    glVertexAttribDivisor(3, 1);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, grass.getVertexCount(), grassPositions.size());
-    glBindVertexArray(0);
-
-    glEnable(GL_CULL_FACE);
-}
 
 void renderScene()
 {
@@ -433,7 +373,7 @@ void renderScene()
     ground.Draw(groundShader);
 
     // Render Grass
-    renderGrassInstances();
+    grass.render(view, projection, normalMatrix);
 
     // Render Skybox
     skyboxShader.useShaderProgram();
@@ -500,8 +440,6 @@ int main(int argc, const char *argv[])
         return 1;
     }
 
-    mySkybox.LoadFromDir(RESOURCES_PATH "skybox/");
-
     initOpenGLState();
     initObjects();
     initShaders();
@@ -509,6 +447,9 @@ int main(int argc, const char *argv[])
     initImGui();
     initFrameBuffer();
     initTextures();
+
+    mySkybox.LoadFromDir(RESOURCES_PATH "skybox/");
+    grass.init();
 
     while (!glfwWindowShouldClose(glWindow))
     {
@@ -523,17 +464,13 @@ int main(int argc, const char *argv[])
 
         water.drawImguiControls();
         atmosphere.drawImguiControls();
+        grass.drawImguiControls();
 
         ImGui::Begin("Light Position");
         ImGui::DragFloat3("Light Position", value_ptr(lightPos), 1.0f, -1000.0f, 1000.0f);
         ImGui::End();
 
-        ImGui::Begin("Terrain Map");
-        ImGui::DragFloat("Height Scale", &heightScale, 0.1f, 0.0f, 100.0f);
-        ImGui::DragFloat("Height Threshold", &heightThreshold, 1.0f, 0.0f, 10000.0f);
-        ImGui::DragFloat("Hard Threshold", &hardThreshold, 0.1f, 0.0f, 100.0f);
-        ImGui::DragFloat("Wind Strength", &windStrength, 0.01f, 0.0f, 5.0f);
-        ImGui::End();
+
 
         renderScene();
 

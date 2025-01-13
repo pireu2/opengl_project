@@ -20,16 +20,13 @@ namespace gps{
     private:
         Shader shader = {};
 
-        float fogDensity = 0.5f;
-        float fogOffset = 3557.0f * 2;
+        float fogDensity = 0.19f;
+        float fogOffset = 3557.0f * 4;
         float fogHeight = 500.0f;
 
         float fogAttenuation = 1.0f;
         glm::vec3 fogColor = glm::vec3(1.0f, 0.95f, 0.9f);
-        float distanceFog = 3560.0f * 2;
-
-        glm::vec3 sunColor = glm::vec3(1.0f, 0.7f, 0.0f);
-        glm::vec3 sunDirection = glm::vec3(-0.024f, -0.062f, 1.0f);
+        float distanceFog = 3560.0f * 4;
 
 
         float skyboxSpeed = 0.05f;
