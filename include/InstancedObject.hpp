@@ -18,7 +18,7 @@ namespace gps
     {
     public:
         void loadModel(const std::string &modelPath);
-        void setShader(const std::string &vertexShaderFileName, const std::string &fragmentShaderFileName);
+        void loadShader(const std::string &vertexShaderFileName, const std::string &fragmentShaderFileName);
         void setInstancePositions(const std::vector<glm::vec3> &positions);
         virtual void drawImguiControls() = 0;
 

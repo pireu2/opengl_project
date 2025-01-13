@@ -1,5 +1,4 @@
 ﻿#include <random>
-#include <iostream>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -25,6 +24,7 @@
 #include <Atmosphere.hpp>
 #include <Grass.hpp>
 #include <Tree.hpp>
+#include <Ground.hpp>
 
 int glWindowWidth = 1920;
 int glWindowHeight = 1080;
@@ -58,20 +58,16 @@ gps::Water water;
 gps::Atmosphere atmosphere;
 gps::Grass grass;
 gps::Tree tree;
-
-gps::Model3D ground;
-gps::Shader groundShader;
+gps::Ground ground;
 
 gps::SkyBox mySkybox;
 gps::Shader skyboxShader;
 
-float heightScale = 30.0f;
 
 unsigned int framebuffer;
 unsigned int textureColorBuffer;
 unsigned int rbo;
 
-unsigned int heightMapTexture;
 unsigned int depthTexture;
 
 unsigned int quadVAO = 0;
@@ -234,25 +230,27 @@ void initObjects()
     water.loadModel(RESOURCES_PATH "objects/water/water.obj");
     grass.loadModel(RESOURCES_PATH "objects/grass/grass.obj");
     tree.loadModel(RESOURCES_PATH "objects/palm/palm.obj");
-    ground.LoadModel(RESOURCES_PATH "objects/ground/ground.obj");
+    ground.loadModel(RESOURCES_PATH "objects/ground/ground.obj");
 }
 
-void initTextures()
+void init()
 {
-    heightMapTexture = gps::Model3D::ReadTextureFromFile(RESOURCES_PATH "textures/heightmap.png");
+    mySkybox.LoadFromDir(RESOURCES_PATH "skybox/");
+    grass.init();
+    tree.init();
+    ground.init();
 }
 
 void initShaders()
 {
-    water.loadShader(RESOURCES_PATH "shaders/water.vert", RESOURCES_PATH "shaders/water.frag");
-    atmosphere.loadShader(RESOURCES_PATH "shaders/atmosphere.vert", RESOURCES_PATH "shaders/atmosphere.frag");
     skyboxShader.loadShader(RESOURCES_PATH "shaders/skyboxShader.vert", RESOURCES_PATH "shaders/skyboxShader.frag");
     skyboxShader.useShaderProgram();
-    groundShader.loadShader(RESOURCES_PATH "shaders/ground.vert", RESOURCES_PATH "shaders/ground.frag");
-    groundShader.useShaderProgram();
 
-    grass.setShader(RESOURCES_PATH "shaders/grass.vert", RESOURCES_PATH "shaders/grass.frag");
-    tree.setShader(RESOURCES_PATH "shaders/tree.vert", RESOURCES_PATH "shaders/tree.frag");
+    water.loadShader(RESOURCES_PATH "shaders/water.vert", RESOURCES_PATH "shaders/water.frag");
+    atmosphere.loadShader(RESOURCES_PATH "shaders/atmosphere.vert", RESOURCES_PATH "shaders/atmosphere.frag");
+    ground.loadShader(RESOURCES_PATH "shaders/ground.vert", RESOURCES_PATH "shaders/ground.frag");
+    grass.loadShader(RESOURCES_PATH "shaders/grass.vert", RESOURCES_PATH "shaders/grass.frag");
+    tree.loadShader(RESOURCES_PATH "shaders/tree.vert", RESOURCES_PATH "shaders/tree.frag");
 }
 
 void initUniforms()
@@ -278,13 +276,7 @@ void initUniforms()
 
     water.initUniforms(model, view, normalMatrix, lightDir, lightColor, cameraPosition);
 
-    groundShader.useShaderProgram();
-    groundShader.setMat4("model", model);
-    groundShader.setMat4("view", view);
-    groundShader.setMat4("projection", projection);
-    groundShader.setMat3("normalMatrix", normalMatrix);
-    groundShader.setVec3("lightDir", lightDir);
-    groundShader.setVec3("lightColor", lightColor);
+    ground.initUniforms(model, view, projection, normalMatrix, lightDir, lightColor);
 
     grass.initUniforms(model, view, projection, normalMatrix);
 
@@ -364,16 +356,7 @@ void renderScene()
     const auto cameraPosition = myCamera.getCameraPosition();
 
     // Render ground
-    groundShader.useShaderProgram();
-    groundShader.setMat4("view", view);
-    groundShader.setMat4("projection", projection);
-    groundShader.setMat3("normalMatrix", value_ptr(normalMatrix));
-    groundShader.setFloat("heightScale", heightScale);
-    groundShader.setVec3("lightPos", lightDir);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, heightMapTexture);
-    groundShader.setInt("heightMap", 1);
-    ground.Draw(groundShader);
+    ground.render(view, projection, normalMatrix, lightDir);
 
     // Render Grass
     grass.render(view, projection, normalMatrix);
@@ -452,11 +435,8 @@ int main(int argc, const char *argv[])
     initUniforms();
     initImGui();
     initFrameBuffer();
-    initTextures();
 
-    mySkybox.LoadFromDir(RESOURCES_PATH "skybox/");
-    grass.init();
-    tree.init();
+    init();
 
     while (!glfwWindowShouldClose(glWindow))
     {

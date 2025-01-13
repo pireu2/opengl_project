@@ -8,7 +8,7 @@ namespace gps
         model.LoadModel(modelPath);
     }
 
-    void InstancedObject::setShader(const std::string &vertexShaderFileName, const std::string &fragmentShaderFileName)
+    void InstancedObject::loadShader(const std::string &vertexShaderFileName, const std::string &fragmentShaderFileName)
     {
         shader.loadShader(vertexShaderFileName, fragmentShaderFileName);
     }
