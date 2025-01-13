@@ -24,6 +24,7 @@
 #include <Water.hpp>
 #include <Atmosphere.hpp>
 #include <Grass.hpp>
+#include <Tree.hpp>
 
 int glWindowWidth = 1920;
 int glWindowHeight = 1080;
@@ -39,7 +40,7 @@ glm::mat4 projection;
 glm::mat3 normalMatrix;
 glm::mat4 lightRotation;
 
-glm::vec3 lightPos;
+glm::vec3 lightDir;
 glm::vec3 lightColor;
 
 gps::Camera myCamera(
@@ -56,14 +57,13 @@ float lastX, lastY;
 gps::Water water;
 gps::Atmosphere atmosphere;
 gps::Grass grass;
+gps::Tree tree;
 
 gps::Model3D ground;
 gps::Shader groundShader;
 
 gps::SkyBox mySkybox;
 gps::Shader skyboxShader;
-
-
 
 float heightScale = 30.0f;
 
@@ -72,12 +72,10 @@ unsigned int textureColorBuffer;
 unsigned int rbo;
 
 unsigned int heightMapTexture;
-
 unsigned int depthTexture;
 
 unsigned int quadVAO = 0;
 unsigned int quadVBO;
-
 
 void windowResizeCallback(GLFWwindow *window, int width, int height)
 {
@@ -235,6 +233,7 @@ void initObjects()
 {
     water.loadModel(RESOURCES_PATH "objects/water/water.obj");
     grass.loadModel(RESOURCES_PATH "objects/grass/grass.obj");
+    tree.loadModel(RESOURCES_PATH "objects/palm/palm.obj");
     ground.LoadModel(RESOURCES_PATH "objects/ground/ground.obj");
 }
 
@@ -253,6 +252,7 @@ void initShaders()
     groundShader.useShaderProgram();
 
     grass.setShader(RESOURCES_PATH "shaders/grass.vert", RESOURCES_PATH "shaders/grass.frag");
+    tree.setShader(RESOURCES_PATH "shaders/tree.vert", RESOURCES_PATH "shaders/tree.frag");
 }
 
 void initUniforms()
@@ -266,7 +266,7 @@ void initUniforms()
 
     projection = glm::perspective(glm::radians(myCamera.getZoom()), static_cast<float>(retina_width) / static_cast<float>(retina_height), 0.1f, 10000.0f);
 
-    lightPos = glm::vec3(6.622f, 1000.0f, -515.225f);
+    lightDir = glm::vec3(6.622f, 1000.0f, -515.225f);
 
     lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 
@@ -276,17 +276,20 @@ void initUniforms()
 
     const auto cameraPosition = myCamera.getCameraPosition();
 
-    water.initUniforms(model, view, normalMatrix, lightPos, lightColor, cameraPosition);
+    water.initUniforms(model, view, normalMatrix, lightDir, lightColor, cameraPosition);
 
     groundShader.useShaderProgram();
     groundShader.setMat4("model", model);
     groundShader.setMat4("view", view);
     groundShader.setMat4("projection", projection);
     groundShader.setMat3("normalMatrix", normalMatrix);
-    groundShader.setVec3("lightPos", lightPos);
+    groundShader.setVec3("lightDir", lightDir);
     groundShader.setVec3("lightColor", lightColor);
 
     grass.initUniforms(model, view, projection, normalMatrix);
+
+    model = glm::scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 2.0f));
+    tree.initUniforms(model, view, projection, normalMatrix, lightDir, lightColor);
 }
 
 void initFrameBuffer()
@@ -311,6 +314,7 @@ void initFrameBuffer()
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0);
 
     grass.setInstancePositions(grass.generateGrassPositions());
+    tree.setInstancePositions(tree.generateTreePositions());
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
@@ -346,7 +350,6 @@ void renderQuad()
     glBindVertexArray(0);
 }
 
-
 void renderScene()
 {
     glViewport(0, 0, retina_width, retina_height);
@@ -366,7 +369,7 @@ void renderScene()
     groundShader.setMat4("projection", projection);
     groundShader.setMat3("normalMatrix", value_ptr(normalMatrix));
     groundShader.setFloat("heightScale", heightScale);
-    groundShader.setVec3("lightPos", lightPos);
+    groundShader.setVec3("lightPos", lightDir);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, heightMapTexture);
     groundShader.setInt("heightMap", 1);
@@ -375,6 +378,9 @@ void renderScene()
     // Render Grass
     grass.render(view, projection, normalMatrix);
 
+    // Render Trees
+    tree.render(view, projection, normalMatrix, lightDir);
+
     // Render Skybox
     skyboxShader.useShaderProgram();
     skyboxShader.setMat4("projection", projection);
@@ -382,7 +388,7 @@ void renderScene()
     mySkybox.Draw(skyboxShader, view, projection);
 
     // Render Water
-    water.setUniforms(view, projection, lightPos, cameraPosition);
+    water.setUniforms(view, projection, lightDir, cameraPosition);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_CUBE_MAP, mySkybox.GetTextureId());
     water.draw(view);
@@ -450,6 +456,7 @@ int main(int argc, const char *argv[])
 
     mySkybox.LoadFromDir(RESOURCES_PATH "skybox/");
     grass.init();
+    tree.init();
 
     while (!glfwWindowShouldClose(glWindow))
     {
@@ -466,11 +473,9 @@ int main(int argc, const char *argv[])
         atmosphere.drawImguiControls();
         grass.drawImguiControls();
 
-        ImGui::Begin("Light Position");
-        ImGui::DragFloat3("Light Position", value_ptr(lightPos), 1.0f, -1000.0f, 1000.0f);
+        ImGui::Begin("Light Direction");
+        ImGui::DragFloat3("Light Direction", value_ptr(lightDir), 1.0f, -1000.0f, 1000.0f);
         ImGui::End();
-
-
 
         renderScene();
 

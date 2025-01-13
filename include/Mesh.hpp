@@ -64,5 +64,4 @@ namespace gps
         // Initializes all the buffer objects/arrays
         void setupMesh();
     };
-
 }

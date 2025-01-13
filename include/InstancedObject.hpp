@@ -11,14 +11,15 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 
-namespace gps {
+namespace gps
+{
 
-    class InstancedObject {
+    class InstancedObject
+    {
     public:
         void loadModel(const std::string &modelPath);
         void setShader(const std::string &vertexShaderFileName, const std::string &fragmentShaderFileName);
-        virtual void setInstancePositions(const std::vector<glm::vec3> &positions) = 0;
-        virtual void render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix) = 0;
+        void setInstancePositions(const std::vector<glm::vec3> &positions);
         virtual void drawImguiControls() = 0;
 
     protected:

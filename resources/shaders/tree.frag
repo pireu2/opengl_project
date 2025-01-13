@@ -4,16 +4,14 @@ in vec3 fNormal;
 in vec4 fPosEye;
 in vec2 fTexCoords;
 
-out vec4 fColor;
-
 //lighting
 uniform	vec3 lightDir;
 uniform	vec3 lightColor;
 
 //texture
-uniform sampler2D diffuseTexture;
-uniform sampler2D heightMap;
-uniform float heightScale;
+uniform sampler2D treeTexture;
+
+out vec4 fColor;
 
 vec3 ambient;
 float ambientStrength = 0.2f;
@@ -21,7 +19,6 @@ vec3 diffuse;
 vec3 specular;
 float specularStrength = 0.5f;
 float shininess = 32.0f;
-
 
 
 void computeLightComponents()
@@ -50,20 +47,11 @@ void main()
 {
     computeLightComponents();
 
-    vec3 textureColor = texture(diffuseTexture, fTexCoords).rgb;
+    vec3 textureColor = texture(treeTexture, fTexCoords).rgb;
 
-    float height = texture(heightMap, fTexCoords).r * heightScale;
-
-    // Define the yellow color
-    vec3 yellow = vec3(1.0f, 1.0f, 0.65f);
-
-    // Blend the texture color with yellow based on the height
-    float blendFactor = clamp(1.0f - height + 0.2f, 0.0f, 1.0f);
-    vec3 blendedColor = mix(textureColor, yellow, blendFactor);
-
-    ambient *= blendedColor;
-    diffuse *= blendedColor;
-    specular *= blendedColor;
+    ambient *= textureColor;
+    diffuse *= textureColor;
+    specular *= textureColor;
 
     vec3 color = min((ambient + diffuse) + specular, 1.0f);
 

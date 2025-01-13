@@ -9,13 +9,14 @@
 
 namespace gps
 {
+
     class Water
     {
     public:
-        void initUniforms(glm::mat4 modelMatrix, glm::mat4 view, glm::mat3 normalMatrix, glm::vec3 lightPos,
+        void initUniforms(glm::mat4 modelMatrix, glm::mat4 view, glm::mat3 normalMatrix, glm::vec3 lightDir,
                           glm::vec3 lightColor, glm::vec3 viewPos);
 
-        void setUniforms(glm::mat4 view, glm::mat4 projection, glm::vec3 lightPos, glm::vec3 viewPos);
+        void setUniforms(glm::mat4 view, glm::mat4 projection, glm::vec3 lightDir, glm::vec3 viewPos);
 
         void drawImguiControls();
 
@@ -33,7 +34,6 @@ namespace gps
     private:
         Model3D model;
         Shader shader = {};
-
 
         glm::vec3 specularColor = glm::vec3(226.0f / 255.0f, 243.0f / 255.0f, 160.0f / 255.0f);
         glm::vec3 ambientColor = glm::vec3(0.0f, 67.0f / 255.0f, 120.0f / 255.0f);

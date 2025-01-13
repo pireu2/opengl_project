@@ -3,7 +3,7 @@
 namespace gps
 {
 
-    void Water::initUniforms(glm::mat4 modelMatrix, glm::mat4 view, glm::mat3 normalMatrix, glm::vec3 lightPos, glm::vec3 lightColor, glm::vec3 viewPos)
+    void Water::initUniforms(glm::mat4 modelMatrix, glm::mat4 view, glm::mat3 normalMatrix, glm::vec3 lightDir, glm::vec3 lightColor, glm::vec3 viewPos)
     {
         shader.useShaderProgram();
 
@@ -11,7 +11,7 @@ namespace gps
         shader.setMat4("view", view);
         shader.setMat3("normalMatrix", normalMatrix);
 
-        shader.setVec3("lightPos", lightPos);
+        shader.setVec3("lightDir", lightDir);
         shader.setVec3("viewPos", viewPos);
         shader.setVec3("lightColor", lightColor);
 
@@ -62,12 +62,12 @@ namespace gps
         shader.setVec3("fresnelColor", fresnelColor);
     }
 
-    void Water::setUniforms(glm::mat4 view, glm::mat4 projection, glm::vec3 lightPos, glm::vec3 viewPos)
+    void Water::setUniforms(glm::mat4 view, glm::mat4 projection, glm::vec3 lightDir, glm::vec3 viewPos)
     {
         shader.useShaderProgram();
         shader.setMat4("view", view);
         shader.setMat4("projection", projection);
-        shader.setVec3("lightPos", lightPos);
+        shader.setVec3("lightDir", lightDir);
         shader.setVec3("viewPos", viewPos);
         shader.setFloat("time", timeWater);
 

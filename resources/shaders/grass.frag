@@ -3,7 +3,6 @@
 in vec3 fNormal;
 in vec4 fPosEye;
 in vec2 fTexCoords;
-in float fHeight;
 
 out vec4 fColor;
 

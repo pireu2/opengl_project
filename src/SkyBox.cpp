@@ -1,11 +1,3 @@
-//
-//  SkyBox.cpp
-//  Lab10(CubeMaps)
-//
-//  Created by CGIS on 16/12/2016.
-//  Copyright © 2016 CGIS. All rights reserved.
-//
-
 #include "SkyBox.hpp"
 
 namespace gps

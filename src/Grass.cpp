@@ -1,11 +1,12 @@
 #include <Grass.hpp>
 
-namespace gps{
+namespace gps
+{
 
     void Grass::init()
     {
         heightMapTexture = Model3D::ReadTextureFromFile(RESOURCES_PATH "textures/heightmap.png");
-        grassTexture = Model3D::ReadTextureFromFile(RESOURCES_PATH "textures/grass.png", 1);
+        grassTexture = Model3D::ReadTextureFromFile(RESOURCES_PATH "objects/grass/grass.png", 1);
     }
 
     void Grass::initUniforms(const glm::mat4 &model, const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix)
@@ -21,19 +22,8 @@ namespace gps{
     {
         ImGui::Begin("Grass Controls");
         ImGui::DragFloat("Height Scale", &heightScale, 0.1f, 0.0f, 100.0f);
-        ImGui::DragFloat("Height Threshold", &heightThreshold, 1.0f, 0.0f, 10000.0f);
-        ImGui::DragFloat("Hard Threshold", &hardThreshold, 0.1f, 0.0f, 100.0f);
         ImGui::DragFloat("Wind Strength", &windStrength, 0.01f, 0.0f, 5.0f);
         ImGui::End();
-    }
-
-    void Grass::setInstancePositions(const std::vector<glm::vec3> &instancePositions)
-    {
-        this->instancePositions = instancePositions;
-        glGenBuffers(1, &instanceVBO);
-        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
-        glBufferData(GL_ARRAY_BUFFER, instancePositions.size() * sizeof(glm::vec3), &instancePositions[0], GL_STATIC_DRAW);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 
     void Grass::render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix)
@@ -44,8 +34,6 @@ namespace gps{
         shader.setMat4("projection", glm::value_ptr(projection));
         shader.setMat3("normalMatrix", glm::value_ptr(normalMatrix));
         shader.setFloat("heightScale", heightScale);
-        shader.setFloat("heightThreshold", heightThreshold);
-        shader.setFloat("hardThreshold", hardThreshold);
         shader.setFloat("time", static_cast<float>(glfwGetTime()));
         shader.setFloat("windStrength", windStrength);
         glActiveTexture(GL_TEXTURE1);
@@ -78,11 +66,16 @@ namespace gps{
             {
                 float offsetX = distribution(generator);
                 float offsetZ = distribution(generator);
-                positions.emplace_back(x * spacing + offsetX, 0.0f, z * spacing + offsetZ);
+                glm::vec3 position(x * spacing + offsetX, 0.0f, z * spacing + offsetZ);
+
+                // Check if the position is within the circle
+                if (glm::length(glm::vec2(position.x, position.z)) <= radius)
+                {
+                    positions.emplace_back(position);
+                }
             }
         }
         return positions;
-
-     }
+    }
 
 }

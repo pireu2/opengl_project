@@ -16,6 +16,8 @@ uniform mat3 normalMatrix;
 
 uniform sampler2D heightMap;
 uniform float heightScale;
+uniform float heightThreshold;
+uniform float hardThreshold;
 
 uniform float time;
 uniform float windStrength;
@@ -30,26 +32,16 @@ void main()
     float h = texture(heightMap, heightMapCoords).r * heightScale;
 
 
-
-//    float probability = pow(clamp((heightThreshold - h) / heightThreshold, 0.0, 1.0),100.0f);
-//    if(h < hardThreshold){
-//        probability = 1.0f;
+    vec3 newPosition = vec3(worldPosition.x, worldPosition.y + h, worldPosition.z);
+//    float windEffect = sin(time + instancePosition.x * 0.1 + instancePosition.z * 0.1) * windStrength;
+//    if (vPosition.y > 0.5) {
+//        newPosition.x += windEffect;
+//        newPosition.z += windEffect;
 //    }
-//    if (fract(sin(dot(instancePosition.xy, vec2(12.9898, 78.233))) * 43758.5453) < probability) {
-//        gl_Position = vec4(0.0);
-//        return;
-//    }
-
-    vec3 newPosition = vec3(offsetPos.x, offsetPos.y + h, offsetPos.z);
-    float windEffect = sin(time + instancePosition.x * 0.1 + instancePosition.z * 0.1) * windStrength;
-    if (vPosition.y > 0.5) {
-        newPosition.x += windEffect;
-        newPosition.z += windEffect;
-    }
 
     fPosEye = view * model * vec4(newPosition, 1.0f);
     fNormal = normalize(normalMatrix * vNormal);
     fTexCoords = vTexCoords;
 
-    gl_Position = projection * view * model * vec4(newPosition, 1.0f);
+    gl_Position = projection * view * vec4(newPosition, 1.0f);
 }

@@ -29,6 +29,7 @@ namespace gps
         unsigned int getVAO();
 
         [[nodiscard]] unsigned int getVertexCount() const;
+
     private:
         // Component meshes - group of objects
         std::vector<Mesh> meshes;
@@ -42,6 +43,5 @@ namespace gps
         Texture LoadTexture(std::string path, std::string type);
 
         // Reads the pixel data from an image file and loads it into the video memory
-
     };
 }

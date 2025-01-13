@@ -6,8 +6,8 @@ in vec2 fTexCoords;
 
 out vec4 fColor;
 
-uniform vec3 lightPos; // Light position in world space
-uniform vec3 viewPos;  // Camera position in world space
+uniform vec3 lightDir;
+uniform vec3 viewPos;
 uniform vec3 lightColor;
 
 uniform float time;
@@ -86,14 +86,14 @@ void computeLight(vec3 normal, out vec3 ambient, out vec3 diffuse, out vec3 spec
 {
     ambient = ambientStrength * ambientColor;
 
-    vec3 lightDir = normalize(lightPos - fFragPos);
-    float diff = max(dot(normal, lightDir), 0.0);
+    vec3 lightPos = normalize(lightDir - fFragPos);
+    float diff = max(dot(normal, lightPos), 0.0);
     diffuse = diff * diffuseColor;
 
     vec3 viewDir = normalize(viewPos - fFragPos);
-    vec3 reflectDir = reflect(-lightDir, normal);
+    vec3 reflectDir = reflect(-lightPos, normal);
     float spec = 0.0;
-    vec3 halfwayDir = normalize(lightDir + viewDir);
+    vec3 halfwayDir = normalize(lightPos + viewDir);
     spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
     specular = specularColor * spec;
 }

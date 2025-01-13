@@ -6,7 +6,8 @@
 #include <glm/gtc/matrix_inverse.hpp>
 #include <imgui.h>
 
-namespace gps{
+namespace gps
+{
 
     class Atmosphere
     {
@@ -17,6 +18,7 @@ namespace gps{
         void setDepthTexture(int textureId);
         void setSkyboxTexture(int textureId);
         void drawImguiControls();
+
     private:
         Shader shader = {};
 
@@ -27,7 +29,6 @@ namespace gps{
         float fogAttenuation = 1.0f;
         glm::vec3 fogColor = glm::vec3(1.0f, 0.95f, 0.9f);
         float distanceFog = 3560.0f * 4;
-
 
         float skyboxSpeed = 0.05f;
         glm::vec3 skyboxDirection = glm::vec3(0.0f, 1.0f, 0.0f);
