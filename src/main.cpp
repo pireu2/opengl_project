@@ -1,15 +1,10 @@
-﻿#include <random>
-#include <fstream>
-
-#include <glad/glad.h>
+﻿#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-#include <stb_image/stb_image.h>
 
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
@@ -54,7 +49,6 @@ float cameraSpeed = baseCameraSpeed;
 gps::CameraTour cameraTour;
 
 bool pressedKeys[1024];
-float angleY = 0.0f;
 bool firstMouse = true;
 float lastX, lastY;
 
@@ -80,7 +74,6 @@ gps::Shader depthMapShader;
 
 unsigned int framebuffer;
 unsigned int textureColorBuffer;
-unsigned int rbo;
 
 unsigned int depthTexture;
 
@@ -636,8 +629,6 @@ int main(int argc, const char *argv[])
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
-        water.drawImguiControls();
 
         ImGui::Begin("Light");
         ImGui::DragFloat3("Light Direction", value_ptr(lightDir), 1.0f, -1000.0f, 1000.0f);
