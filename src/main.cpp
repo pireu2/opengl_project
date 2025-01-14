@@ -26,6 +26,7 @@
 #include <Grass.hpp>
 #include <Tree.hpp>
 #include <Ground.hpp>
+#include <CameraTour.hpp>
 
 int glWindowWidth = 1920;
 int glWindowHeight = 1080;
@@ -50,10 +51,7 @@ gps::Camera myCamera(
     glm::vec3(0.0f, 1.0f, 0.0f));
 float baseCameraSpeed = 1.0f;
 float cameraSpeed = baseCameraSpeed;
-std::vector<glm::vec3> cameraPositions;
-std::vector<glm::vec3> cameraFronts;
-bool guidedTourActive = false;
-std::vector<std::pair<glm::vec3, glm::vec3>> tourPositions;
+gps::CameraTour cameraTour;
 
 bool pressedKeys[1024];
 float angleY = 0.0f;
@@ -99,66 +97,6 @@ bool pointViewMode = false;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-void sampleCameraPosition(const glm::vec3 &position, const glm::vec3 &front)
-{
-    cameraPositions.push_back(position);
-    cameraFronts.push_back(front);
-}
-
-void saveCameraPositionsToFile(const std::string &filename)
-{
-    if (std::ofstream file(filename); file.is_open())
-    {
-        for (size_t i = 0; i < cameraPositions.size(); ++i)
-        {
-            file << cameraPositions[i].x << " " << cameraPositions[i].y << " " << cameraPositions[i].z << " "
-                 << cameraFronts[i].x << " " << cameraFronts[i].y << " " << cameraFronts[i].z << "\n";
-        }
-        file.close();
-    }
-}
-
-std::vector<std::pair<glm::vec3, glm::vec3>> loadCameraPositionsFromFile(const std::string &filename) {
-    std::vector<std::pair<glm::vec3, glm::vec3>> positions;
-    if (std::ifstream file(filename); file.is_open())
-    {
-        glm::vec3 pos, front;
-        while (file >> pos.x >> pos.y >> pos.z >> front.x >> front.y >> front.z)
-        {
-            positions.emplace_back(pos, front);
-        }
-        file.close();
-    }
-    return positions;
-}
-
-glm::vec3 interpolate(const glm::vec3 &start, const glm::vec3 &end, const float t)
-{
-    return start + t * (end - start);
-}
-
-void guidedTour(const std::vector<std::pair<glm::vec3, glm::vec3>> &positions, const float duration)
-{
-    static float elapsedTime = 0.0f;
-    static size_t currentIndex = 0;
-
-    if (currentIndex < positions.size() - 1)
-    {
-        const float t = elapsedTime / duration;
-        const glm::vec3 interpolatedPos = interpolate(positions[currentIndex].first, positions[currentIndex + 1].first, t);
-        const glm::vec3 interpolatedFront = interpolate(positions[currentIndex].second, positions[currentIndex + 1].second, t);
-        myCamera.setPosition(interpolatedPos);
-        myCamera.setFront(interpolatedFront);
-
-        elapsedTime += deltaTime;
-        if (elapsedTime >= duration)
-        {
-            elapsedTime = 0.0f;
-            currentIndex++;
-        }
-    }
-}
-
 void windowResizeCallback(GLFWwindow *window, int width, int height)
 {
     fprintf(stdout, "window resized to width: %d , and height: %d\n", width, height);
@@ -171,10 +109,14 @@ void keyboardCallback(GLFWwindow *window, int key, int scancode, int action, int
 
     if (key == GLFW_KEY_T && action == GLFW_PRESS)
     {
-        guidedTourActive = !guidedTourActive;
-        if (guidedTourActive)
+        if (cameraTour.isTourActive())
         {
-            tourPositions = loadCameraPositionsFromFile(RESOURCES_PATH "camera_positions.txt");
+            cameraTour.stopTour();
+        }
+        else
+        {
+            cameraTour.loadCameraPositionsFromFile(RESOURCES_PATH "camera_positions.txt");
+            cameraTour.startTour();
         }
     }
 
@@ -195,7 +137,7 @@ void keyboardCallback(GLFWwindow *window, int key, int scancode, int action, int
 
     if (key == GLFW_KEY_C && action == GLFW_PRESS)
     {
-        sampleCameraPosition(myCamera.getCameraPosition(), myCamera.getCameraFront());
+        cameraTour.sampleCameraPosition(myCamera.getCameraPosition(), myCamera.getCameraFront());
     }
 
     if (key >= 0 && key < 1024)
@@ -238,9 +180,9 @@ void mouseCallback(GLFWwindow *window, double xposIn, double yposIn)
 
 void processMovement()
 {
-    if (guidedTourActive)
+    if (cameraTour.isTourActive())
     {
-        guidedTour(tourPositions, 2.0f); // 5.0f is the duration for each segment
+        cameraTour.updateTour(deltaTime, myCamera, 2.0f);
     }
     else
     {
@@ -483,8 +425,8 @@ void initFrameBuffer()
 glm::mat4 computeLightSpaceTrMatrix()
 {
     const glm::mat4 lightView = lookAt(inverseTranspose(glm::mat3(lightRotation)) * lightDir,
-                                      glm::vec3(0.0f),
-                                      glm::vec3(0.0f, 1.0f, 0.0f));
+                                       glm::vec3(0.0f),
+                                       glm::vec3(0.0f, 1.0f, 0.0f));
 
     const glm::mat4 lightProjection = glm::ortho(-150.0f, 150.0f, -150.0f, 150.0f, 0.1f, 4500.0f);
     const glm::mat4 lightSpaceTrMatrix = lightProjection * lightView;
@@ -567,7 +509,6 @@ void renderScene()
         {
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
-
 
         glViewport(0, 0, retina_width, retina_height);
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
@@ -718,11 +659,10 @@ int main(int argc, const char *argv[])
         glfwSwapBuffers(glWindow);
     }
 
-    if (!cameraFronts.empty() && !cameraPositions.empty())
+    if (!cameraTour.isEmpty())
     {
-        saveCameraPositionsToFile(RESOURCES_PATH "camera_positions.txt");
+        cameraTour.saveCameraPositionsToFile(RESOURCES_PATH "camera_positions.txt");
     }
-
 
     cleanup();
 
