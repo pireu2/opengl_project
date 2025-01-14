@@ -16,12 +16,12 @@ namespace gps
     {
     public:
         void initUniforms(const glm::mat4 &modelMatrix, const glm::mat4 &view, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir,
-                  const glm::vec3 &lightColor, const glm::vec3 &viewPos);
+                          const glm::vec3 &lightColor, const glm::vec3 &viewPos);
 
         void drawImguiControls();
 
-        void render(const glm::mat4 &model,const glm::mat4 &view, const glm::mat4 &projection,
-            const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor, const glm::vec3 &viewPos);
+        void render(const glm::mat4 &model, const glm::mat4 &view, const glm::mat4 &projection,
+                    const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor, const glm::vec3 &viewPos);
 
         void loadModel(const std::string &fileName);
 

@@ -1,4 +1,5 @@
 ﻿#include <random>
+#include <fstream>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -49,6 +50,10 @@ gps::Camera myCamera(
     glm::vec3(0.0f, 1.0f, 0.0f));
 float baseCameraSpeed = 1.0f;
 float cameraSpeed = baseCameraSpeed;
+std::vector<glm::vec3> cameraPositions;
+std::vector<glm::vec3> cameraFronts;
+bool guidedTourActive = false;
+std::vector<std::pair<glm::vec3, glm::vec3>> tourPositions;
 
 bool pressedKeys[1024];
 float angleY = 0.0f;
@@ -75,7 +80,6 @@ auto pointLightColor = glm::vec3(1.0f, 1.0f, 0.0f);
 
 gps::Shader depthMapShader;
 
-
 unsigned int framebuffer;
 unsigned int textureColorBuffer;
 unsigned int rbo;
@@ -89,6 +93,72 @@ unsigned int shadowMapFBO;
 unsigned int depthMapTexture;
 bool showDepthMap = false;
 
+bool wireframeMode = false;
+bool pointViewMode = false;
+
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+
+void sampleCameraPosition(const glm::vec3 &position, const glm::vec3 &front)
+{
+    cameraPositions.push_back(position);
+    cameraFronts.push_back(front);
+}
+
+void saveCameraPositionsToFile(const std::string &filename)
+{
+    if (std::ofstream file(filename); file.is_open())
+    {
+        for (size_t i = 0; i < cameraPositions.size(); ++i)
+        {
+            file << cameraPositions[i].x << " " << cameraPositions[i].y << " " << cameraPositions[i].z << " "
+                 << cameraFronts[i].x << " " << cameraFronts[i].y << " " << cameraFronts[i].z << "\n";
+        }
+        file.close();
+    }
+}
+
+std::vector<std::pair<glm::vec3, glm::vec3>> loadCameraPositionsFromFile(const std::string &filename) {
+    std::vector<std::pair<glm::vec3, glm::vec3>> positions;
+    if (std::ifstream file(filename); file.is_open())
+    {
+        glm::vec3 pos, front;
+        while (file >> pos.x >> pos.y >> pos.z >> front.x >> front.y >> front.z)
+        {
+            positions.emplace_back(pos, front);
+        }
+        file.close();
+    }
+    return positions;
+}
+
+glm::vec3 interpolate(const glm::vec3 &start, const glm::vec3 &end, const float t)
+{
+    return start + t * (end - start);
+}
+
+void guidedTour(const std::vector<std::pair<glm::vec3, glm::vec3>> &positions, const float duration)
+{
+    static float elapsedTime = 0.0f;
+    static size_t currentIndex = 0;
+
+    if (currentIndex < positions.size() - 1)
+    {
+        const float t = elapsedTime / duration;
+        const glm::vec3 interpolatedPos = interpolate(positions[currentIndex].first, positions[currentIndex + 1].first, t);
+        const glm::vec3 interpolatedFront = interpolate(positions[currentIndex].second, positions[currentIndex + 1].second, t);
+        myCamera.setPosition(interpolatedPos);
+        myCamera.setFront(interpolatedFront);
+
+        elapsedTime += deltaTime;
+        if (elapsedTime >= duration)
+        {
+            elapsedTime = 0.0f;
+            currentIndex++;
+        }
+    }
+}
+
 void windowResizeCallback(GLFWwindow *window, int width, int height)
 {
     fprintf(stdout, "window resized to width: %d , and height: %d\n", width, height);
@@ -98,6 +168,35 @@ void keyboardCallback(GLFWwindow *window, int key, int scancode, int action, int
 {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
+
+    if (key == GLFW_KEY_T && action == GLFW_PRESS)
+    {
+        guidedTourActive = !guidedTourActive;
+        if (guidedTourActive)
+        {
+            tourPositions = loadCameraPositionsFromFile(RESOURCES_PATH "camera_positions.txt");
+        }
+    }
+
+    if (key == GLFW_KEY_M && action == GLFW_PRESS)
+    {
+        showDepthMap = !showDepthMap;
+    }
+
+    if (key == GLFW_KEY_P && action == GLFW_PRESS)
+    {
+        pointViewMode = !pointViewMode;
+    }
+
+    if (key == GLFW_KEY_F && action == GLFW_PRESS)
+    {
+        wireframeMode = !wireframeMode;
+    }
+
+    if (key == GLFW_KEY_C && action == GLFW_PRESS)
+    {
+        sampleCameraPosition(myCamera.getCameraPosition(), myCamera.getCameraFront());
+    }
 
     if (key >= 0 && key < 1024)
     {
@@ -139,36 +238,39 @@ void mouseCallback(GLFWwindow *window, double xposIn, double yposIn)
 
 void processMovement()
 {
-    if (pressedKeys[GLFW_KEY_LEFT_SHIFT] || pressedKeys[GLFW_KEY_RIGHT_SHIFT])
+    if (guidedTourActive)
     {
-        cameraSpeed = baseCameraSpeed * 5.0f;
+        guidedTour(tourPositions, 2.0f); // 5.0f is the duration for each segment
     }
     else
     {
-        cameraSpeed = baseCameraSpeed;
-    }
-    if (pressedKeys[GLFW_KEY_W])
-    {
-        myCamera.ProcessKeyboard(gps::FORWARD, cameraSpeed);
-    }
+        if (pressedKeys[GLFW_KEY_LEFT_SHIFT] || pressedKeys[GLFW_KEY_RIGHT_SHIFT])
+        {
+            cameraSpeed = baseCameraSpeed * 5.0f;
+        }
+        else
+        {
+            cameraSpeed = baseCameraSpeed;
+        }
+        if (pressedKeys[GLFW_KEY_W])
+        {
+            myCamera.ProcessKeyboard(gps::FORWARD, cameraSpeed);
+        }
 
-    if (pressedKeys[GLFW_KEY_S])
-    {
-        myCamera.ProcessKeyboard(gps::BACKWARD, cameraSpeed);
-    }
+        if (pressedKeys[GLFW_KEY_S])
+        {
+            myCamera.ProcessKeyboard(gps::BACKWARD, cameraSpeed);
+        }
 
-    if (pressedKeys[GLFW_KEY_A])
-    {
-        myCamera.ProcessKeyboard(gps::LEFT, cameraSpeed);
-    }
+        if (pressedKeys[GLFW_KEY_A])
+        {
+            myCamera.ProcessKeyboard(gps::LEFT, cameraSpeed);
+        }
 
-    if (pressedKeys[GLFW_KEY_D])
-    {
-        myCamera.ProcessKeyboard(gps::RIGHT, cameraSpeed);
-    }
-    if (pressedKeys[GLFW_KEY_M])
-    {
-        showDepthMap = !showDepthMap;
+        if (pressedKeys[GLFW_KEY_D])
+        {
+            myCamera.ProcessKeyboard(gps::RIGHT, cameraSpeed);
+        }
     }
 }
 
@@ -378,20 +480,13 @@ void initFrameBuffer()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-float left = -150.0f;
-float right = 150.0f;
-float bottom = -150.0f;
-float top = 150.0f;
-float near_plane = 0.1f;
-float far_plane = 4500.0f;
-
 glm::mat4 computeLightSpaceTrMatrix()
 {
-    glm::mat4 lightView = glm::lookAt(glm::inverseTranspose(glm::mat3(lightRotation)) * lightDir,
-        glm::vec3(0.0f),
-        glm::vec3(0.0f, 1.0f, 0.0f));
+    const glm::mat4 lightView = lookAt(inverseTranspose(glm::mat3(lightRotation)) * lightDir,
+                                      glm::vec3(0.0f),
+                                      glm::vec3(0.0f, 1.0f, 0.0f));
 
-    const glm::mat4 lightProjection = glm::ortho(left, right, bottom, top, near_plane, far_plane);
+    const glm::mat4 lightProjection = glm::ortho(-150.0f, 150.0f, -150.0f, 150.0f, 0.1f, 4500.0f);
     const glm::mat4 lightSpaceTrMatrix = lightProjection * lightView;
 
     return lightSpaceTrMatrix;
@@ -427,7 +522,7 @@ void renderQuad()
 void renderScene()
 {
     const auto lightSpaceTrMatrix = computeLightSpaceTrMatrix();
-    glViewport(0,0,SHADOW_WIDTH, SHADOW_HEIGHT);
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
     glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
     ground.render_depth(lightSpaceTrMatrix);
@@ -445,7 +540,7 @@ void renderScene()
 
     if (showDepthMap)
     {
-        glViewport(0,0,retina_width, retina_height);
+        glViewport(0, 0, retina_width, retina_height);
         glClear(GL_COLOR_BUFFER_BIT);
         screenQuadShader.useShaderProgram();
 
@@ -457,7 +552,23 @@ void renderScene()
         screenQuad.Draw(screenQuadShader);
         glEnable(GL_DEPTH_TEST);
     }
-    else {
+    else
+    {
+
+        if (wireframeMode)
+        {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        }
+        else if (pointViewMode)
+        {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+        }
+        else
+        {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+
+
         glViewport(0, 0, retina_width, retina_height);
         glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
         glEnable(GL_DEPTH_TEST);
@@ -483,15 +594,13 @@ void renderScene()
         lightHouse.Draw(lightHouseShader);
 
         // Render ground
-        ground.render(view, projection, normalMatrix, lightDirTr, lightColor,lightSpaceTrMatrix, depthMapTexture, pointLightPosition, pointLightColor);
+        ground.render(view, projection, normalMatrix, lightDirTr, lightColor, lightSpaceTrMatrix, depthMapTexture, pointLightPosition, pointLightColor);
 
         // Render Grass
         grass.render(view, projection, normalMatrix, lightDirTr, lightColor, lightSpaceTrMatrix, depthMapTexture, pointLightPosition, pointLightColor);
 
         // Render Trees
         tree.render(view, projection, normalMatrix, lightDirTr, lightColor, lightSpaceTrMatrix, depthMapTexture, pointLightPosition, pointLightColor);
-
-
 
         // Render Skybox
         skyboxShader.useShaderProgram();
@@ -507,7 +616,7 @@ void renderScene()
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDisable(GL_DEPTH_TEST);
 
-        //glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT);
 
         atmosphere.setUniforms(view, projection, cameraPosition, static_cast<float>(glfwGetTime()));
 
@@ -522,6 +631,8 @@ void renderScene()
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_CUBE_MAP, mySkybox.GetTextureId());
         atmosphere.setSkyboxTexture(2);
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         renderQuad();
 
@@ -575,6 +686,10 @@ int main(int argc, const char *argv[])
 
     while (!glfwWindowShouldClose(glWindow))
     {
+        const auto currentFrame = static_cast<float>(glfwGetTime());
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
         processMovement();
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -582,18 +697,13 @@ int main(int argc, const char *argv[])
         ImGui::NewFrame();
 
         water.drawImguiControls();
-        // atmosphere.drawImguiControls();
-        // grass.drawImguiControls();
-        // tree.drawImguiControls();
 
         ImGui::Begin("Light");
         ImGui::DragFloat3("Light Direction", value_ptr(lightDir), 1.0f, -1000.0f, 1000.0f);
+        ImGui::DragFloat("Light Angle", &lightAngle, 1.0f, 0.0f, 360.0f);
         ImGui::ColorEdit3("Light Color", value_ptr(lightColor));
 
-        ImGui::DragFloat("near", &near_plane, 1.0f, 0.1f, 10000.0f);
-        ImGui::DragFloat("far", &far_plane, 1.0f, 0.1f, 100000.0f);
-
-        //point light controls
+        // point light controls
         ImGui::DragFloat3("Point Light Position", value_ptr(pointLightPosition), 1.0f, -1000.0f, 1000.0f);
         ImGui::ColorEdit3("Point Light Color", value_ptr(pointLightColor));
 
@@ -607,6 +717,12 @@ int main(int argc, const char *argv[])
         glfwPollEvents();
         glfwSwapBuffers(glWindow);
     }
+
+    if (!cameraFronts.empty() && !cameraPositions.empty())
+    {
+        saveCameraPositionsToFile(RESOURCES_PATH "camera_positions.txt");
+    }
+
 
     cleanup();
 

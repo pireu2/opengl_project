@@ -9,7 +9,7 @@ namespace gps
         grassTexture = Model3D::ReadTextureFromFile(RESOURCES_PATH "objects/grass/grass.png", 1);
     }
 
-    void Grass::initUniforms(const glm::mat4 &model, const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3& lightDir, const glm::vec3& lightColor)
+    void Grass::initUniforms(const glm::mat4 &model, const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor)
     {
         shader.useShaderProgram();
         shader.setMat4("model", glm::value_ptr(model));
@@ -28,8 +28,8 @@ namespace gps
         ImGui::End();
     }
 
-    void Grass::render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor ,
-            const glm::mat4 &lightSpaceTrMatrix, unsigned int shadowMapTexture,const glm::vec3 &pointLightPosition, const glm::vec3 &pointLightColor)
+    void Grass::render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor,
+                       const glm::mat4 &lightSpaceTrMatrix, unsigned int shadowMapTexture, const glm::vec3 &pointLightPosition, const glm::vec3 &pointLightColor)
     {
         glDisable(GL_CULL_FACE);
         shader.useShaderProgram();

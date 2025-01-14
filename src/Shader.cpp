@@ -61,7 +61,8 @@ namespace gps
             {
                 std::vector<char> log(logSize);
                 glGetProgramInfoLog(this->shaderProgram, logSize, &logSize, log.data());
-                std::cerr << "Shader program validation error in files: " << vertexShaderFileName << " and " << fragmentShaderFileName << "\n" << log.data() << std::endl;
+                std::cerr << "Shader program validation error in files: " << vertexShaderFileName << " and " << fragmentShaderFileName << "\n"
+                          << log.data() << std::endl;
             }
             else
             {
@@ -114,90 +115,120 @@ namespace gps
 
     void Shader::setMat4(const std::string &name, glm::mat4 &value) const
     {
-        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1) {
+        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1)
+        {
             std::cerr << "Error: Could not find uniform location for '" << name << "'" << std::endl;
-        } else {
+        }
+        else
+        {
             glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
         }
     }
 
     void Shader::setMat3(const std::string &name, glm::mat3 &value) const
     {
-        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1) {
+        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1)
+        {
             std::cerr << "Error: Could not find uniform location for '" << name << "'" << std::endl;
-        } else {
+        }
+        else
+        {
             glUniformMatrix3fv(location, 1, GL_FALSE, glm::value_ptr(value));
         }
     }
 
     void Shader::setVec3(const std::string &name, glm::vec3 &value) const
     {
-        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1) {
+        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1)
+        {
             std::cerr << "Error: Could not find uniform location for '" << name << "'" << std::endl;
-        } else {
+        }
+        else
+        {
             glUniform3fv(location, 1, glm::value_ptr(value));
         }
     }
 
     void Shader::setVec4(const std::string &name, glm::vec4 &value) const
     {
-        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1) {
+        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1)
+        {
             std::cerr << "Error: Could not find uniform location for '" << name << "'" << std::endl;
-        } else {
+        }
+        else
+        {
             glUniform4fv(location, 1, glm::value_ptr(value));
         }
     }
 
     void Shader::setMat4(const std::string &name, const float *value) const
     {
-        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1) {
+        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1)
+        {
             std::cerr << "Error: Could not find uniform location for '" << name << "'" << std::endl;
-        } else {
+        }
+        else
+        {
             glUniformMatrix4fv(location, 1, GL_FALSE, value);
         }
     }
 
     void Shader::setMat3(const std::string &name, const float *value) const
     {
-        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1) {
+        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1)
+        {
             std::cerr << "Error: Could not find uniform location for '" << name << "'" << std::endl;
-        } else {
+        }
+        else
+        {
             glUniformMatrix3fv(location, 1, GL_FALSE, value);
         }
     }
 
     void Shader::setVec3(const std::string &name, const float *value) const
     {
-        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1) {
+        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1)
+        {
             std::cerr << "Error: Could not find uniform location for '" << name << "'" << std::endl;
-        } else {
+        }
+        else
+        {
             glUniform3f(location, value[0], value[1], value[2]);
         }
     }
 
     void Shader::setVec4(const std::string &name, const float *value) const
     {
-        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1) {
+        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1)
+        {
             std::cerr << "Error: Could not find uniform location for '" << name << "'" << std::endl;
-        } else {
+        }
+        else
+        {
             glUniform4f(location, value[0], value[1], value[2], value[3]);
         }
     }
 
     void Shader::setInt(const std::string &name, const int value) const
     {
-        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1) {
+        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1)
+        {
             std::cerr << "Error: Could not find uniform location for '" << name << "'" << std::endl;
-        } else {
+        }
+        else
+        {
             glUniform1i(location, value);
         }
     }
 
     void Shader::setFloat(const std::string &name, const float value) const
     {
-        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1) {
+        if (const int location = glGetUniformLocation(shaderProgram, name.c_str()); location == -1)
+        {
             std::cerr << "Error: Could not find uniform location for '" << name << "'" << std::endl;
-        } else {
+        }
+        else
+        {
             glUniform1f(location, value);
         }
     }

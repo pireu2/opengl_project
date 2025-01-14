@@ -16,7 +16,7 @@ namespace gps
 
     constexpr float YAW = -90.0f;
     constexpr float PITCH = 0.0f;
-    constexpr float SPEED = 1.0f;
+    constexpr float SPEED = 0.5f;
     constexpr float SENSITIVITY = 0.1f;
     constexpr float ZOOM = 45.0f;
 
@@ -36,6 +36,9 @@ namespace gps
         // pitch - camera rotation around the x-axis
         void ProcessMouseMovement(float xoffset, float yoffset, bool constantPitch = true);
         void ProcessMouseScroll(float yoffset);
+        void setPosition(glm::vec3 position);
+        void setFront(glm::vec3 front);
+        [[nodiscard]] glm::vec3 getCameraFront() const;
         [[nodiscard]] glm::vec3 getCameraPosition() const;
         [[nodiscard]] float getZoom() const;
 
@@ -52,6 +55,7 @@ namespace gps
         float MovementSpeed;
         float MouseSensitivity;
         float Zoom;
+
 
         void updateCameraVectors();
     };

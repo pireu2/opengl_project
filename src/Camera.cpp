@@ -80,6 +80,11 @@ namespace gps
         return Position;
     }
 
+    glm::vec3 Camera::getCameraFront() const
+    {
+        return Front;
+    }
+
     float Camera::getZoom() const
     {
         return Zoom;
@@ -95,5 +100,18 @@ namespace gps
         Right = normalize(cross(Front, WorldUp));
         Up = normalize(cross(Right, Front));
     }
+
+    void Camera::setPosition(const glm::vec3 position)
+    {
+        Position = position;
+    }
+
+    void Camera::setFront(const glm::vec3 front)
+    {
+        Front = front;
+    }
+
+
+
 
 }

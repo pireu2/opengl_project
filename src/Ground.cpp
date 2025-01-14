@@ -8,18 +8,18 @@ namespace gps
         depthMapShader.loadShader(RESOURCES_PATH "shaders/depthShaders/depthMap.vert", RESOURCES_PATH "shaders/depthShaders/depthMap.frag");
     }
 
-    void Ground::loadModel(const std::string& path)
+    void Ground::loadModel(const std::string &path)
     {
         model.LoadModel(path);
     }
 
-    void Ground::loadShader(const std::string& vertexPath, const std::string& fragmentPath)
+    void Ground::loadShader(const std::string &vertexPath, const std::string &fragmentPath)
     {
         shader.loadShader(vertexPath, fragmentPath);
         shader.useShaderProgram();
     }
 
-    void Ground::initUniforms(const glm::mat4& model, const glm::mat4& view, const glm::mat4& projection, const glm::mat3& normalMatrix, const glm::vec3& lightDir, const glm::vec3& lightColor)
+    void Ground::initUniforms(const glm::mat4 &model, const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor)
     {
         shader.useShaderProgram();
         shader.setMat4("model", glm::value_ptr(model));
@@ -33,8 +33,8 @@ namespace gps
         depthMapShader.setMat4("model", glm::value_ptr(model));
     }
 
-    void Ground::render(const glm::mat4& view, const glm::mat4& projection, const glm::mat3& normalMatrix, const glm::vec3& lightDir, const glm::vec3& lightColor,
-            const glm::mat4& lightSpaceTrMatrix, unsigned int shadowMapTexture,const glm::vec3 &pointLightPosition, const glm::vec3 &pointLightColor)
+    void Ground::render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor,
+                        const glm::mat4 &lightSpaceTrMatrix, unsigned int shadowMapTexture, const glm::vec3 &pointLightPosition, const glm::vec3 &pointLightColor)
     {
         shader.useShaderProgram();
         shader.setMat4("view", glm::value_ptr(view));
@@ -56,7 +56,7 @@ namespace gps
         model.Draw(shader);
     }
 
-    void Ground::render_depth(const glm::mat4& lightSpaceTrMatrix)
+    void Ground::render_depth(const glm::mat4 &lightSpaceTrMatrix)
     {
         depthMapShader.useShaderProgram();
         depthMapShader.setMat4("lightSpaceTrMatrix", glm::value_ptr(lightSpaceTrMatrix));

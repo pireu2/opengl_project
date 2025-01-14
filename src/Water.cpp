@@ -4,7 +4,7 @@ namespace gps
 {
 
     void Water::initUniforms(const glm::mat4 &modelMatrix, const glm::mat4 &view, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir,
-                  const glm::vec3 &lightColor, const glm::vec3 &viewPos)
+                             const glm::vec3 &lightColor, const glm::vec3 &viewPos)
     {
         shader.useShaderProgram();
 
@@ -61,8 +61,8 @@ namespace gps
         shader.setFloat("fresnelStrength", fresnelStrength);
     }
 
-    void Water::render(const glm::mat4 &model,const glm::mat4 &view, const glm::mat4 &projection,
-            const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor, const glm::vec3 &viewPos)
+    void Water::render(const glm::mat4 &model, const glm::mat4 &view, const glm::mat4 &projection,
+                       const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor, const glm::vec3 &viewPos)
     {
         shader.useShaderProgram();
         shader.setMat4("model", value_ptr(model));
@@ -71,7 +71,7 @@ namespace gps
         shader.setVec3("lightDir", value_ptr(lightDir));
         shader.setVec3("lightColor", value_ptr(lightColor));
 
-        //shader.setMat3("normalMatrix", normalMatrix);
+        // shader.setMat3("normalMatrix", normalMatrix);
         shader.setVec3("viewPos", value_ptr(viewPos));
         shader.setFloat("time", static_cast<float>(glfwGetTime()));
 
@@ -181,7 +181,5 @@ namespace gps
         shader.loadShader(vertexShaderFileName, fragmentShaderFileName);
         shader.useShaderProgram();
     }
-
-
 
 }

@@ -31,8 +31,8 @@ namespace gps
     }
 
     void Tree::render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix,
-            const glm::vec3 &lightDir, const glm::vec3 &lightColor, const glm::mat4 &lightSpaceTrMatrix,
-            unsigned int shadowMapTexture, glm::vec3 pointLightPosition, glm::vec3 pointLightColor)
+                      const glm::vec3 &lightDir, const glm::vec3 &lightColor, const glm::mat4 &lightSpaceTrMatrix,
+                      unsigned int shadowMapTexture, glm::vec3 pointLightPosition, glm::vec3 pointLightColor)
     {
         shader.useShaderProgram();
         shader.setMat4("view", glm::value_ptr(view));
@@ -99,8 +99,6 @@ namespace gps
                 {
                     positions.emplace_back(position);
                 }
-
-
             }
         }
         return positions;
