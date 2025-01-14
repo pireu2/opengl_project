@@ -86,18 +86,18 @@ vec3 fragmentFBM(vec3 v) {
 
 void computeLight(vec3 normal, out vec3 ambient, out vec3 diffuse, out vec3 specular)
 {
-    ambient = ambientStrength * ambientColor;
+    ambient = ambientStrength * ambientColor * lightColor;
 
     vec3 lightPos = normalize(lightDir - fFragPos);
     float diff = max(dot(normal, lightPos), 0.0);
-    diffuse = diff * diffuseColor;
+    diffuse = diff * diffuseColor * lightColor;
 
     vec3 viewDir = normalize(viewPos - fFragPos);
     vec3 reflectDir = reflect(-lightPos, normal);
     float spec = 0.0;
     vec3 halfwayDir = normalize(lightPos + viewDir);
     spec = pow(max(dot(normal, halfwayDir), 0.0), shininess);
-    specular = specularColor * spec;
+    specular = specularColor * spec * lightColor;
 }
 
 void main()
