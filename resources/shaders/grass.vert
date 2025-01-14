@@ -8,11 +8,13 @@ layout(location=3) in vec3 instancePosition;
 out vec3 fNormal;
 out vec4 fPosEye;
 out vec2 fTexCoords;
+out vec4 fragPosLightSpace;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 uniform mat3 normalMatrix;
+uniform mat4 lightSpaceTrMatrix;
 
 uniform sampler2D heightMap;
 uniform float heightScale;
@@ -31,15 +33,6 @@ void main()
 
 
 
-//    float probability = pow(clamp((heightThreshold - h) / heightThreshold, 0.0, 1.0),100.0f);
-//    if(h < hardThreshold){
-//        probability = 1.0f;
-//    }
-//    if (fract(sin(dot(instancePosition.xy, vec2(12.9898, 78.233))) * 43758.5453) < probability) {
-//        gl_Position = vec4(0.0);
-//        return;
-//    }
-
     vec3 newPosition = vec3(offsetPos.x, offsetPos.y + h, offsetPos.z);
     float windEffect = sin(time + instancePosition.x * 0.1 + instancePosition.z * 0.1) * windStrength;
     if (vPosition.y > 0.5) {
@@ -50,6 +43,7 @@ void main()
     fPosEye = view * model * vec4(newPosition, 1.0f);
     fNormal = normalize(normalMatrix * vNormal);
     fTexCoords = vTexCoords;
+    fragPosLightSpace = lightSpaceTrMatrix * model * vec4(newPosition, 1.0f);
 
     gl_Position = projection * view * model * vec4(newPosition, 1.0f);
 }

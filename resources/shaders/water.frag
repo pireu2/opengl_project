@@ -6,6 +6,8 @@ in vec2 fTexCoords;
 
 out vec4 fColor;
 
+uniform mat3 normalMatrix;
+
 uniform vec3 lightDir;
 uniform vec3 viewPos;
 uniform vec3 lightColor;
@@ -43,7 +45,7 @@ uniform float fresnelNormalStrength;
 uniform float fresnelShininess;
 uniform float fresnelBias;
 uniform float fresnelStrength;
-uniform vec3 fresnelColor;
+vec3 fresnelColor = vec3(1.0);
 
 vec3 fragmentFBM(vec3 v) {
     float f = fragmentFrequency;

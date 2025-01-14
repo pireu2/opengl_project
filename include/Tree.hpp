@@ -1,3 +1,4 @@
+#pragma once
 #include <InstancedObject.hpp>
 
 namespace gps
@@ -5,7 +6,8 @@ namespace gps
     class Tree : public InstancedObject
     {
     public:
-        void render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir);
+        void render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::mat4 &lightSpaceTrMatrix, const unsigned int shadowMapTexture);
+        void render_depth(const glm::mat4 &lightSpaceTrMatrix);
         void drawImguiControls() override;
         void init();
         void initUniforms(const glm::mat4 &model, const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor);

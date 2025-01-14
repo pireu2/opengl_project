@@ -6,6 +6,7 @@ namespace gps
     {
         heightMapTexture = Model3D::ReadTextureFromFile(RESOURCES_PATH "textures/heightmap.png");
         treeTexture = Model3D::ReadTextureFromFile(RESOURCES_PATH "objects/palm/palm.png");
+        depthMapShader.loadShader(RESOURCES_PATH "shaders/depthShaders/depthTree.vert", RESOURCES_PATH "shaders/depthShaders/depthMap.frag");
     }
 
     void Tree::initUniforms(const glm::mat4 &model, const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor)
@@ -17,6 +18,9 @@ namespace gps
         shader.setMat3("normalMatrix", glm::value_ptr(normalMatrix));
         shader.setVec3("lightDir", glm::value_ptr(lightDir));
         shader.setVec3("lightColor", glm::value_ptr(lightColor));
+
+        depthMapShader.useShaderProgram();
+        depthMapShader.setMat4("model", glm::value_ptr(model));
     }
 
     void Tree::drawImguiControls()
@@ -26,23 +30,24 @@ namespace gps
         ImGui::End();
     }
 
-    void Tree::render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir)
+    void Tree::render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::mat4 &lightSpaceTrMatrix, const unsigned int shadowMapTexture)
     {
-        glDisable(GL_CULL_FACE);
         shader.useShaderProgram();
         shader.setMat4("view", glm::value_ptr(view));
         shader.setMat4("projection", glm::value_ptr(projection));
         shader.setMat3("normalMatrix", glm::value_ptr(normalMatrix));
-        shader.setVec3("lightDir",glm::value_ptr(lightDir));
+        shader.setVec3("lightDir", glm::value_ptr(lightDir));
+        shader.setMat4("lightSpaceTrMatrix", glm::value_ptr(lightSpaceTrMatrix));
         shader.setFloat("heightScale", heightScale);
-        shader.setFloat("time", static_cast<float>(glfwGetTime()));
-        shader.setFloat("windStrength", windStrength);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, heightMapTexture);
         shader.setInt("heightMap", 1);
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, treeTexture);
         shader.setInt("treeTexture", 2);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
+        shader.setInt("shadowMap", 3);
 
         glBindVertexArray(model.getVAO());
         glEnableVertexAttribArray(3);
@@ -51,8 +56,24 @@ namespace gps
         glVertexAttribDivisor(3, 1);
         glDrawArraysInstanced(GL_TRIANGLES, 0, model.getVertexCount(), instancePositions.size());
         glBindVertexArray(0);
+    }
 
-        glEnable(GL_CULL_FACE);
+    void Tree::render_depth(const glm::mat4 &lightSpaceTrMatrix)
+    {
+        depthMapShader.useShaderProgram();
+        depthMapShader.setMat4("lightSpaceTrMatrix", glm::value_ptr(lightSpaceTrMatrix));
+        shader.setFloat("heightScale", heightScale);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, heightMapTexture);
+        shader.setInt("heightMap", 1);
+
+        glBindVertexArray(model.getVAO());
+        glEnableVertexAttribArray(3);
+        glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), nullptr);
+        glVertexAttribDivisor(3, 1);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, model.getVertexCount(), instancePositions.size());
+        glBindVertexArray(0);
     }
 
     std::vector<glm::vec3> Tree::generateTreePositions()
@@ -69,7 +90,6 @@ namespace gps
                 float offsetZ = distribution(generator);
                 glm::vec3 position(x * spacing + offsetX, 0.0f, z * spacing + offsetZ);
 
-                // Check if the position is within the circle
                 if (glm::length(glm::vec2(position.x, position.z)) <= radius)
                 {
                     positions.emplace_back(position);
@@ -78,6 +98,5 @@ namespace gps
         }
         return positions;
     }
-
 
 }

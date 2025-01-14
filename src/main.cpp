@@ -31,17 +31,18 @@ int glWindowHeight = 1080;
 int retina_width, retina_height;
 GLFWwindow *glWindow = nullptr;
 
-constexpr unsigned int SHADOW_WIDTH = 2048;
-constexpr unsigned int SHADOW_HEIGHT = 2048;
+constexpr unsigned int SHADOW_WIDTH = 8192;
+constexpr unsigned int SHADOW_HEIGHT = 8192;
 
 glm::mat4 model;
 glm::mat4 view;
 glm::mat4 projection;
 glm::mat3 normalMatrix;
-glm::mat4 lightRotation;
 
 glm::vec3 lightDir;
 glm::vec3 lightColor;
+glm::mat4 lightRotation;
+float lightAngle;
 
 gps::Camera myCamera(
     glm::vec3(0.0f, 2.0f, 5.5f),
@@ -63,6 +64,8 @@ gps::Ground ground;
 gps::SkyBox mySkybox;
 gps::Shader skyboxShader;
 
+gps::Model3D screenQuad;
+gps::Shader screenQuadShader;
 
 unsigned int framebuffer;
 unsigned int textureColorBuffer;
@@ -72,6 +75,10 @@ unsigned int depthTexture;
 
 unsigned int quadVAO = 0;
 unsigned int quadVBO;
+
+unsigned int shadowMapFBO;
+unsigned int depthMapTexture;
+bool showDepthMap = false;
 
 void windowResizeCallback(GLFWwindow *window, int width, int height)
 {
@@ -149,6 +156,10 @@ void processMovement()
     if (pressedKeys[GLFW_KEY_D])
     {
         myCamera.ProcessKeyboard(gps::RIGHT, cameraSpeed);
+    }
+    if (pressedKeys[GLFW_KEY_M])
+    {
+        showDepthMap = !showDepthMap;
     }
 }
 
@@ -231,20 +242,22 @@ void initObjects()
     grass.loadModel(RESOURCES_PATH "objects/grass/grass.obj");
     tree.loadModel(RESOURCES_PATH "objects/palm/palm.obj");
     ground.loadModel(RESOURCES_PATH "objects/ground/ground.obj");
-}
+    screenQuad.LoadModel(RESOURCES_PATH "objects/quad/quad.obj");
 
-void init()
-{
     mySkybox.LoadFromDir(RESOURCES_PATH "skybox/");
     grass.init();
     tree.init();
     ground.init();
 }
 
+
 void initShaders()
 {
     skyboxShader.loadShader(RESOURCES_PATH "shaders/skyboxShader.vert", RESOURCES_PATH "shaders/skyboxShader.frag");
     skyboxShader.useShaderProgram();
+
+    screenQuadShader.loadShader(RESOURCES_PATH "shaders/screenQuad.vert", RESOURCES_PATH "shaders/screenQuad.frag");
+    screenQuadShader.useShaderProgram();
 
     water.loadShader(RESOURCES_PATH "shaders/water.vert", RESOURCES_PATH "shaders/water.frag");
     atmosphere.loadShader(RESOURCES_PATH "shaders/atmosphere.vert", RESOURCES_PATH "shaders/atmosphere.frag");
@@ -260,13 +273,17 @@ void initUniforms()
 
     view = myCamera.getViewMatrix();
 
-    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+    normalMatrix = glm::mat3(inverseTranspose(view * model));
 
     projection = glm::perspective(glm::radians(myCamera.getZoom()), static_cast<float>(retina_width) / static_cast<float>(retina_height), 0.1f, 10000.0f);
 
-    lightDir = glm::vec3(6.622f, 1000.0f, -515.225f);
+    lightDir = glm::vec3(6.622f, 300.0f, -515.225f);
 
     lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+
+    lightRotation = rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f));
+
+    const glm::vec3 lightDirTr = inverseTranspose(glm::mat3(view * lightRotation)) * lightDir;
 
     skyboxShader.useShaderProgram();
     skyboxShader.setMat4("view", view);
@@ -274,14 +291,14 @@ void initUniforms()
 
     const auto cameraPosition = myCamera.getCameraPosition();
 
-    water.initUniforms(model, view, normalMatrix, lightDir, lightColor, cameraPosition);
+    water.initUniforms(model, view, normalMatrix, lightDirTr, lightColor, cameraPosition);
 
-    ground.initUniforms(model, view, projection, normalMatrix, lightDir, lightColor);
+    ground.initUniforms(model, view, projection, normalMatrix, lightDirTr, lightColor);
 
-    grass.initUniforms(model, view, projection, normalMatrix);
+    grass.initUniforms(model, view, projection, normalMatrix, lightDirTr, lightColor);
 
-    model = glm::scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 2.0f));
-    tree.initUniforms(model, view, projection, normalMatrix, lightDir, lightColor);
+    model = scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 2.0f));
+    tree.initUniforms(model, view, projection, normalMatrix, lightDirTr, lightColor);
 }
 
 void initFrameBuffer()
@@ -308,11 +325,48 @@ void initFrameBuffer()
     grass.setInstancePositions(grass.generateGrassPositions());
     tree.setInstancePositions(tree.generateTreePositions());
 
+    glGenFramebuffers(1, &shadowMapFBO);
+    glGenTextures(1, &depthMapTexture);
+
+    glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+                 SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    constexpr float borderColor[] = {1.0f, 1.0f, 1.0f, 1.0f};
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMapTexture, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
         fprintf(stderr, "ERROR: Framebuffer is not complete\n");
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+float left = -150.0f;
+float right = 150.0f;
+float bottom = -150.0f;
+float top = 150.0f;
+float near_plane = 0.1f;
+float far_plane = 4500.0f;
+
+glm::mat4 computeLightSpaceTrMatrix()
+{
+    glm::mat4 lightView = glm::lookAt(glm::inverseTranspose(glm::mat3(lightRotation)) * lightDir,
+        glm::vec3(0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f));
+
+    const glm::mat4 lightProjection = glm::ortho(left, right, bottom, top, near_plane, far_plane);
+    const glm::mat4 lightSpaceTrMatrix = lightProjection * lightView;
+
+    return lightSpaceTrMatrix;
 }
 
 void renderQuad()
@@ -344,58 +398,92 @@ void renderQuad()
 
 void renderScene()
 {
-    glViewport(0, 0, retina_width, retina_height);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    glEnable(GL_DEPTH_TEST);
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    view = myCamera.getViewMatrix();
-    projection = glm::perspective(glm::radians(myCamera.getZoom()), static_cast<float>(retina_width) / static_cast<float>(retina_height), 0.1f, 10000.0f);
-    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-    const auto cameraPosition = myCamera.getCameraPosition();
-
-    // Render ground
-    ground.render(view, projection, normalMatrix, lightDir);
-
-    // Render Grass
-    grass.render(view, projection, normalMatrix);
-
-    // Render Trees
-    tree.render(view, projection, normalMatrix, lightDir);
-
-    // Render Skybox
-    skyboxShader.useShaderProgram();
-    skyboxShader.setMat4("projection", projection);
-    skyboxShader.setMat4("view", view);
-    mySkybox.Draw(skyboxShader, view, projection);
-
-    // Render Water
-    water.setUniforms(view, projection, lightDir, cameraPosition);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, mySkybox.GetTextureId());
-    water.draw(view);
-
+    const auto lightSpaceTrMatrix = computeLightSpaceTrMatrix();
+    glViewport(0,0,SHADOW_WIDTH, SHADOW_HEIGHT);
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    ground.render_depth(lightSpaceTrMatrix);
+    tree.render_depth(lightSpaceTrMatrix);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDisable(GL_DEPTH_TEST);
 
-    glClear(GL_COLOR_BUFFER_BIT);
+    if (showDepthMap)
+    {
+        glViewport(0,0,retina_width, retina_height);
+        glClear(GL_COLOR_BUFFER_BIT);
+        screenQuadShader.useShaderProgram();
 
-    atmosphere.setUniforms(view, projection, cameraPosition, static_cast<float>(glfwGetTime()));
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+        screenQuadShader.setInt("depthMap", 0);
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textureColorBuffer);
-    atmosphere.setSceneTexture(0);
+        glDisable(GL_DEPTH_TEST);
+        screenQuad.Draw(screenQuadShader);
+        glEnable(GL_DEPTH_TEST);
+    }
+    else {
+        glViewport(0, 0, retina_width, retina_height);
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+        glEnable(GL_DEPTH_TEST);
 
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, depthTexture);
-    atmosphere.setDepthTexture(1);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, mySkybox.GetTextureId());
-    atmosphere.setSkyboxTexture(2);
+        view = myCamera.getViewMatrix();
+        projection = glm::perspective(glm::radians(myCamera.getZoom()), static_cast<float>(retina_width) / static_cast<float>(retina_height), 0.1f, 10000.0f);
+        normalMatrix = glm::mat3(inverseTranspose(view * model));
+        lightRotation = rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f));
+        const glm::vec3 lightDirTr = inverseTranspose(glm::mat3(view * lightRotation)) * lightDir;
 
-    renderQuad();
+        const auto cameraPosition = myCamera.getCameraPosition();
+
+        screenQuadShader.useShaderProgram();
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+        screenQuadShader.setInt("depthMap", 0);
+
+        // Render ground
+        ground.render(view, projection, normalMatrix, lightDirTr, lightSpaceTrMatrix, depthMapTexture);
+
+        // Render Grass
+        grass.render(view, projection, normalMatrix, lightDirTr, lightSpaceTrMatrix, depthMapTexture);
+
+        // Render Trees
+        tree.render(view, projection, normalMatrix, lightDirTr, lightSpaceTrMatrix, depthMapTexture);
+
+        // Render Skybox
+        skyboxShader.useShaderProgram();
+        skyboxShader.setMat4("projection", projection);
+        skyboxShader.setMat4("view", view);
+        mySkybox.Draw(skyboxShader, view, projection);
+
+        // Render Water
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, mySkybox.GetTextureId());
+        water.render(model, view, projection, normalMatrix, lightDirTr, cameraPosition);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDisable(GL_DEPTH_TEST);
+
+        //glClear(GL_COLOR_BUFFER_BIT);
+
+        atmosphere.setUniforms(view, projection, cameraPosition, static_cast<float>(glfwGetTime()));
+
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, textureColorBuffer);
+        atmosphere.setSceneTexture(4);
+
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, depthTexture);
+        atmosphere.setDepthTexture(1);
+
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, mySkybox.GetTextureId());
+        atmosphere.setSkyboxTexture(2);
+
+        renderQuad();
+
+        glEnable(GL_DEPTH_TEST);
+    }
 }
 
 void initImGui()
@@ -416,6 +504,12 @@ void cleanup()
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteTextures(1, &textureColorBuffer);
+    glDeleteTextures(1, &depthTexture);
+    glDeleteTextures(1, &depthMapTexture);
+    glDeleteFramebuffers(1, &shadowMapFBO);
+    glDeleteFramebuffers(1, &framebuffer);
+    glDeleteVertexArrays(1, &quadVAO);
     glfwDestroyWindow(glWindow);
     glfwTerminate();
 }
@@ -436,13 +530,8 @@ int main(int argc, const char *argv[])
     initImGui();
     initFrameBuffer();
 
-    init();
-
     while (!glfwWindowShouldClose(glWindow))
     {
-        const auto timeWater = static_cast<float>(glfwGetTime());
-        water.setTime(timeWater);
-
         processMovement();
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -450,11 +539,19 @@ int main(int argc, const char *argv[])
         ImGui::NewFrame();
 
         water.drawImguiControls();
-        atmosphere.drawImguiControls();
-        grass.drawImguiControls();
+        // atmosphere.drawImguiControls();
+        // grass.drawImguiControls();
+        // tree.drawImguiControls();
 
         ImGui::Begin("Light Direction");
         ImGui::DragFloat3("Light Direction", value_ptr(lightDir), 1.0f, -1000.0f, 1000.0f);
+        ImGui::DragFloat("left", &left, 1.0f, -1000.0f, 1000.0f);
+        ImGui::DragFloat("right", &right, 1.0f, -1000.0f, 1000.0f);
+        ImGui::DragFloat("bottom", &bottom, 1.0f, -1000.0f, 1000.0f);
+        ImGui::DragFloat("top", &top, 1.0f, -1000.0f, 1000.0f);
+        ImGui::DragFloat("near", &near_plane, 1.0f, 0.1f, 1000.0f);
+        ImGui::DragFloat("far", &far_plane, 1.0f, 0.1f, 10000.0f);
+
         ImGui::End();
 
         renderScene();

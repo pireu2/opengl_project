@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <vector>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -33,8 +34,10 @@ namespace gps
 
     private:
         static std::string readShaderFile(const std::string &fileName);
-        static void shaderCompileLog(GLuint shaderId);
-        void shaderLinkLog(GLuint shaderProgramId) const;
+        static void shaderCompileLog(int shaderId);
+        void shaderLinkLog(int shaderProgramId) const;
+        void validateShaderProgram(const std::string &vertexShaderFileName, const std::string &fragmentShaderFileName) const;
+        void static checkOpenGLErrors();
     };
 
 }

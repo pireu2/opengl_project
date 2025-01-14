@@ -7,11 +7,13 @@ layout(location=2) in vec2 vTexCoords;
 out vec3 fNormal;
 out vec4 fPosEye;
 out vec2 fTexCoords;
+out vec4 fragPosLightSpace;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 uniform mat3 normalMatrix;
+uniform mat4 lightSpaceTrMatrix;
 
 uniform sampler2D heightMap;
 uniform float heightScale;
@@ -26,12 +28,14 @@ void main()
 
     vec3 normal = normalize(vec3(heightL - heightR, 2.0, heightD - heightU));
 
-    fPosEye = view * model * vec4(vPosition, 1.0f);
-    fTexCoords = vTexCoords;
+
 
     float h = texture(heightMap, vTexCoords).r * heightScale;
     vec3 newPosition = vec3(vPosition.x, h, vPosition.z);
-    gl_Position = projection * view * model * vec4(newPosition, 1.0f);
 
+    fragPosLightSpace = lightSpaceTrMatrix * model * vec4(newPosition, 1.0f);
+    fPosEye = view * model * vec4(newPosition, 1.0f);
+    fTexCoords = vTexCoords;
     fNormal = normalize(normalMatrix * normal);
+    gl_Position = projection * view * model * vec4(newPosition, 1.0f);
 }

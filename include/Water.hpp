@@ -6,6 +6,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <imgui.h>
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
 
 namespace gps
 {
@@ -16,20 +18,13 @@ namespace gps
         void initUniforms(glm::mat4 modelMatrix, glm::mat4 view, glm::mat3 normalMatrix, glm::vec3 lightDir,
                           glm::vec3 lightColor, glm::vec3 viewPos);
 
-        void setUniforms(glm::mat4 view, glm::mat4 projection, glm::vec3 lightDir, glm::vec3 viewPos);
-
         void drawImguiControls();
 
-        void draw(glm::mat4 view);
+        void render(glm::mat4 model,glm::mat4 view, glm::mat4 projection,glm::mat3 normalMatrix, glm::vec3 lightDir, glm::vec3 viewPos);
 
-        void loadModel(std::string fileName);
+        void loadModel(const std::string &fileName);
 
         void loadShader(const std::string &vertexShaderFileName, const std::string &fragmentShaderFileName);
-
-        void setTime(const float time)
-        {
-            timeWater = time;
-        }
 
     private:
         Model3D model;
@@ -49,9 +44,6 @@ namespace gps
         float fresnelShininess = 5.0f;
         float fresnelBias = 0.4f;
         float fresnelStrength = 0.5f;
-        glm::vec3 fresnelColor = glm::vec3(1.0f, 1.0f, 1.0f);
-
-        float timeWater = 0.0f;
 
         int vertexWaveCount = 8;
         int fragmentWaveCount = 40;

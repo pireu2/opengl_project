@@ -24,6 +24,7 @@ namespace gps
 
     protected:
         Shader shader = {};
+        Shader depthMapShader = {};
         Model3D model;
         unsigned int instanceVBO = 0;
         std::vector<glm::vec3> instancePositions;

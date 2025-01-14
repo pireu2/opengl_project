@@ -9,11 +9,9 @@ namespace gps
 
         shader.setMat4("model", modelMatrix);
         shader.setMat4("view", view);
-        shader.setMat3("normalMatrix", normalMatrix);
 
         shader.setVec3("lightDir", lightDir);
         shader.setVec3("viewPos", viewPos);
-        shader.setVec3("lightColor", lightColor);
 
         shader.setInt("vertexWaveCount", vertexWaveCount);
         shader.setFloat("vertexSeed", vertexSeed);
@@ -42,7 +40,7 @@ namespace gps
         shader.setFloat("fragmentMaxPeak", fragmentMaxPeak);
         shader.setFloat("fragmentPeakOffset", fragmentPeakOffset);
         shader.setInt("fragmentWaveCount", fragmentWaveCount);
-        shader.setFloat("time", timeWater);
+        shader.setFloat("time", static_cast<float>(glfwGetTime()));
 
         shader.setFloat("ambientStrength", ambientStrength);
         shader.setVec3("ambientColor", ambientColor);
@@ -59,17 +57,18 @@ namespace gps
         shader.setFloat("fresnelShininess", fresnelShininess);
         shader.setFloat("fresnelBias", fresnelBias);
         shader.setFloat("fresnelStrength", fresnelStrength);
-        shader.setVec3("fresnelColor", fresnelColor);
     }
 
-    void Water::setUniforms(glm::mat4 view, glm::mat4 projection, glm::vec3 lightDir, glm::vec3 viewPos)
+    void Water::render(glm::mat4 model,glm::mat4 view, glm::mat4 projection,glm::mat3 normalMatrix, glm::vec3 lightDir, glm::vec3 viewPos)
     {
         shader.useShaderProgram();
+        shader.setMat4("model", model);
         shader.setMat4("view", view);
         shader.setMat4("projection", projection);
         shader.setVec3("lightDir", lightDir);
+        //shader.setMat3("normalMatrix", normalMatrix);
         shader.setVec3("viewPos", viewPos);
-        shader.setFloat("time", timeWater);
+        shader.setFloat("time", static_cast<float>(glfwGetTime()));
 
         shader.setInt("vertexWaveCount", vertexWaveCount);
         shader.setFloat("vertexSeed", vertexSeed);
@@ -98,7 +97,6 @@ namespace gps
         shader.setFloat("fragmentMaxPeak", fragmentMaxPeak);
         shader.setFloat("fragmentPeakOffset", fragmentPeakOffset);
         shader.setInt("fragmentWaveCount", fragmentWaveCount);
-        shader.setFloat("time", timeWater);
 
         shader.setFloat("ambientStrength", ambientStrength);
         shader.setVec3("ambientColor", ambientColor);
@@ -113,7 +111,9 @@ namespace gps
         shader.setFloat("fresnelShininess", fresnelShininess);
         shader.setFloat("fresnelBias", fresnelBias);
         shader.setFloat("fresnelStrength", fresnelStrength);
-        shader.setVec3("fresnelColor", fresnelColor);
+        shader.setInt("skyboxTex", 2);
+
+        this->model.Draw(shader);
     }
 
     void Water::drawImguiControls()
@@ -163,11 +163,10 @@ namespace gps
         ImGui::SliderFloat("Fresnel Shininess", &fresnelShininess, 0.0f, 10.0f);
         ImGui::SliderFloat("Fresnel Bias", &fresnelBias, 0.0f, 1.0f);
         ImGui::SliderFloat("Fresnel Strength", &fresnelStrength, 0.0f, 1.0f);
-        ImGui::ColorEdit3("Fresnel Color", (float *)&fresnelColor);
         ImGui::End();
     }
 
-    void Water::loadModel(std::string fileName)
+    void Water::loadModel(const std::string &fileName)
     {
         model.LoadModel(fileName);
     }
@@ -178,16 +177,6 @@ namespace gps
         shader.useShaderProgram();
     }
 
-    void Water::draw(glm::mat4 view)
-    {
-        shader.useShaderProgram();
 
-        auto modelMatrix = glm::mat4(1.0f);
-        shader.setMat4("model", modelMatrix);
 
-        auto normalMatrix = glm::mat3(glm::inverseTranspose(view * modelMatrix));
-        shader.setMat3("normalMatrix", normalMatrix);
-
-        model.Draw(shader);
-    }
 }
