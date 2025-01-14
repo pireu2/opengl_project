@@ -9,7 +9,9 @@ out vec3 fNormal;
 out vec4 fPosEye;
 out vec2 fTexCoords;
 out vec4 fragPosLightSpace;
+out vec3 lightPosEye;
 
+uniform vec3 pointLightPosition;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
@@ -31,8 +33,6 @@ void main()
     vec2 heightMapCoords = (vec2(worldPosition.x, -worldPosition.z) / gridSize) * 0.5f + 0.5f;
     float h = texture(heightMap, heightMapCoords).r * heightScale;
 
-
-
     vec3 newPosition = vec3(offsetPos.x, offsetPos.y + h, offsetPos.z);
     float windEffect = sin(time + instancePosition.x * 0.1 + instancePosition.z * 0.1) * windStrength;
     if (vPosition.y > 0.5) {
@@ -41,6 +41,7 @@ void main()
     }
 
     fPosEye = view * model * vec4(newPosition, 1.0f);
+    lightPosEye = vec3(view * vec4(pointLightPosition, 1.0f));
     fNormal = normalize(normalMatrix * vNormal);
     fTexCoords = vTexCoords;
     fragPosLightSpace = lightSpaceTrMatrix * model * vec4(newPosition, 1.0f);

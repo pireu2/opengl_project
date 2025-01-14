@@ -30,14 +30,19 @@ namespace gps
         ImGui::End();
     }
 
-    void Tree::render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::mat4 &lightSpaceTrMatrix, const unsigned int shadowMapTexture)
+    void Tree::render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix,
+            const glm::vec3 &lightDir, const glm::vec3 &lightColor, const glm::mat4 &lightSpaceTrMatrix,
+            unsigned int shadowMapTexture, glm::vec3 pointLightPosition, glm::vec3 pointLightColor)
     {
         shader.useShaderProgram();
         shader.setMat4("view", glm::value_ptr(view));
         shader.setMat4("projection", glm::value_ptr(projection));
         shader.setMat3("normalMatrix", glm::value_ptr(normalMatrix));
         shader.setVec3("lightDir", glm::value_ptr(lightDir));
+        shader.setVec3("lightColor", glm::value_ptr(lightColor));
         shader.setMat4("lightSpaceTrMatrix", glm::value_ptr(lightSpaceTrMatrix));
+        shader.setVec3("pointLightPosition", glm::value_ptr(pointLightPosition));
+        shader.setVec3("pointLightColor", glm::value_ptr(pointLightColor));
         shader.setFloat("heightScale", heightScale);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, heightMapTexture);
@@ -90,10 +95,12 @@ namespace gps
                 float offsetZ = distribution(generator);
                 glm::vec3 position(x * spacing + offsetX, 0.0f, z * spacing + offsetZ);
 
-                if (glm::length(glm::vec2(position.x, position.z)) <= radius)
+                if (glm::length(glm::vec2(position.x, position.z)) <= radius && glm::length(glm::vec2(position.x, position.z)) > 10.0f)
                 {
                     positions.emplace_back(position);
                 }
+
+
             }
         }
         return positions;

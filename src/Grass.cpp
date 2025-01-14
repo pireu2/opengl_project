@@ -7,7 +7,6 @@ namespace gps
     {
         heightMapTexture = Model3D::ReadTextureFromFile(RESOURCES_PATH "textures/heightmap.png");
         grassTexture = Model3D::ReadTextureFromFile(RESOURCES_PATH "objects/grass/grass.png", 1);
-        depthMapShader.loadShader(RESOURCES_PATH "shaders/depthShaders/depthTree.vert", RESOURCES_PATH "shaders/depthShaders/depthMap.frag");
     }
 
     void Grass::initUniforms(const glm::mat4 &model, const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3& lightDir, const glm::vec3& lightColor)
@@ -17,10 +16,8 @@ namespace gps
         shader.setMat4("view", glm::value_ptr(view));
         shader.setMat4("projection", glm::value_ptr(projection));
         shader.setMat3("normalMatrix", glm::value_ptr(normalMatrix));
+        shader.setVec3("lightColor", glm::value_ptr(lightColor));
         shader.setVec3("lightDir", glm::value_ptr(lightDir));
-
-        depthMapShader.useShaderProgram();
-        depthMapShader.setMat4("model", glm::value_ptr(model));
     }
 
     void Grass::drawImguiControls()
@@ -31,7 +28,8 @@ namespace gps
         ImGui::End();
     }
 
-    void Grass::render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::mat4 &lightSpaceTrMatrix, const unsigned int shadowMapTexture)
+    void Grass::render(const glm::mat4 &view, const glm::mat4 &projection, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor ,
+            const glm::mat4 &lightSpaceTrMatrix, unsigned int shadowMapTexture,const glm::vec3 &pointLightPosition, const glm::vec3 &pointLightColor)
     {
         glDisable(GL_CULL_FACE);
         shader.useShaderProgram();
@@ -39,6 +37,9 @@ namespace gps
         shader.setMat4("projection", glm::value_ptr(projection));
         shader.setMat3("normalMatrix", glm::value_ptr(normalMatrix));
         shader.setVec3("lightDir", glm::value_ptr(lightDir));
+        shader.setVec3("lightColor", glm::value_ptr(lightColor));
+        shader.setVec3("pointLightPosition", glm::value_ptr(pointLightPosition));
+        shader.setVec3("pointLightColor", glm::value_ptr(pointLightColor));
         shader.setMat4("lightSpaceTrMatrix", glm::value_ptr(lightSpaceTrMatrix));
         shader.setFloat("heightScale", heightScale);
         shader.setFloat("time", static_cast<float>(glfwGetTime()));

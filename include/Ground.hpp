@@ -12,8 +12,10 @@ namespace gps
         void init();
         void loadModel(const std::string& path);
         void loadShader(const std::string& vertexPath, const std::string& fragmentPath);
-        void initUniforms(const glm::mat4& model, const glm::mat4& view, const glm::mat4& projection, const glm::mat3& normalMatrix, const glm::vec3& lightDir, const glm::vec3& lightColor);
-        void render(const glm::mat4& view, const glm::mat4& projection, const glm::mat3& normalMatrix, const glm::vec3& lightDir, const glm::mat4& lightSpaceTrMatrix, const unsigned int shadowMapTexture);
+        void initUniforms(const glm::mat4& model, const glm::mat4& view, const glm::mat4& projection, const glm::mat3& normalMatrix,
+            const glm::vec3& lightDir, const glm::vec3& lightColor);
+        void render(const glm::mat4& view, const glm::mat4& projection, const glm::mat3& normalMatrix, const glm::vec3& lightDir, const glm::vec3& lightColor,
+            const glm::mat4& lightSpaceTrMatrix, unsigned int shadowMapTexture,const glm::vec3 &pointLightPosition, const glm::vec3 &pointLightColor);
         void render_depth(const glm::mat4& lightSpaceTrMatrix);
 
     private:

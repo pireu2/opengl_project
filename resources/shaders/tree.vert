@@ -9,12 +9,14 @@ out vec3 fNormal;
 out vec4 fPosEye;
 out vec2 fTexCoords;
 out vec4 fragPosLightSpace;
+out vec3 lightPosEye;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 uniform mat3 normalMatrix;
 uniform mat4 lightSpaceTrMatrix;
+uniform vec3 pointLightPosition;
 
 uniform sampler2D heightMap;
 uniform float heightScale;
@@ -33,6 +35,7 @@ void main()
 
 
     fPosEye = view * model * vec4(newPosition, 1.0f);
+    lightPosEye = vec3(view * vec4(pointLightPosition, 1.0f));
     fNormal = normalize(normalMatrix * vNormal);
     fTexCoords = vTexCoords;
     fragPosLightSpace = lightSpaceTrMatrix * vec4(newPosition, 1.0f);

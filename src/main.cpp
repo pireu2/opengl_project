@@ -67,6 +67,15 @@ gps::Shader skyboxShader;
 gps::Model3D screenQuad;
 gps::Shader screenQuadShader;
 
+gps::Model3D lightHouse;
+gps::Shader lightHouseShader;
+
+auto pointLightPosition = glm::vec3(0.0f, 100.0f, 0.0f);
+auto pointLightColor = glm::vec3(1.0f, 1.0f, 0.0f);
+
+gps::Shader depthMapShader;
+
+
 unsigned int framebuffer;
 unsigned int textureColorBuffer;
 unsigned int rbo;
@@ -243,6 +252,7 @@ void initObjects()
     tree.loadModel(RESOURCES_PATH "objects/palm/palm.obj");
     ground.loadModel(RESOURCES_PATH "objects/ground/ground.obj");
     screenQuad.LoadModel(RESOURCES_PATH "objects/quad/quad.obj");
+    lightHouse.LoadModel(RESOURCES_PATH "objects/lighthouse/lighthouse.obj");
 
     mySkybox.LoadFromDir(RESOURCES_PATH "skybox/");
     grass.init();
@@ -250,25 +260,29 @@ void initObjects()
     ground.init();
 }
 
-
 void initShaders()
 {
+    grass.loadShader(RESOURCES_PATH "shaders/grass.vert", RESOURCES_PATH "shaders/grass.frag");
+    water.loadShader(RESOURCES_PATH "shaders/water.vert", RESOURCES_PATH "shaders/water.frag");
+    atmosphere.loadShader(RESOURCES_PATH "shaders/atmosphere.vert", RESOURCES_PATH "shaders/atmosphere.frag");
+    ground.loadShader(RESOURCES_PATH "shaders/ground.vert", RESOURCES_PATH "shaders/ground.frag");
+    tree.loadShader(RESOURCES_PATH "shaders/tree.vert", RESOURCES_PATH "shaders/tree.frag");
+
     skyboxShader.loadShader(RESOURCES_PATH "shaders/skyboxShader.vert", RESOURCES_PATH "shaders/skyboxShader.frag");
     skyboxShader.useShaderProgram();
 
     screenQuadShader.loadShader(RESOURCES_PATH "shaders/screenQuad.vert", RESOURCES_PATH "shaders/screenQuad.frag");
     screenQuadShader.useShaderProgram();
 
-    water.loadShader(RESOURCES_PATH "shaders/water.vert", RESOURCES_PATH "shaders/water.frag");
-    atmosphere.loadShader(RESOURCES_PATH "shaders/atmosphere.vert", RESOURCES_PATH "shaders/atmosphere.frag");
-    ground.loadShader(RESOURCES_PATH "shaders/ground.vert", RESOURCES_PATH "shaders/ground.frag");
-    grass.loadShader(RESOURCES_PATH "shaders/grass.vert", RESOURCES_PATH "shaders/grass.frag");
-    tree.loadShader(RESOURCES_PATH "shaders/tree.vert", RESOURCES_PATH "shaders/tree.frag");
+    lightHouseShader.loadShader(RESOURCES_PATH "shaders/lightHouse.vert", RESOURCES_PATH "shaders/lightHouse.frag");
+    lightHouseShader.useShaderProgram();
+
+    depthMapShader.loadShader(RESOURCES_PATH "shaders/depthShaders/depthMap.vert", RESOURCES_PATH "shaders/depthShaders/depthMap.frag");
+    depthMapShader.useShaderProgram();
 }
 
 void initUniforms()
 {
-
     model = glm::mat4(1.0f);
 
     view = myCamera.getViewMatrix();
@@ -291,6 +305,18 @@ void initUniforms()
 
     const auto cameraPosition = myCamera.getCameraPosition();
 
+    lightHouseShader.useShaderProgram();
+    model = scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 2.0f));
+    model = translate(model, glm::vec3(0.0f, 11.0f, 0.0f));
+    lightHouseShader.setMat4("model", model);
+    lightHouseShader.setMat4("view", view);
+    lightHouseShader.setMat4("projection", projection);
+    lightHouseShader.setMat3("normalMatrix", normalMatrix);
+    lightHouseShader.setVec3("lightDir", value_ptr(lightDirTr));
+    lightHouseShader.setVec3("lightColor", value_ptr(lightColor));
+
+    model = glm::mat4(1.0f);
+
     water.initUniforms(model, view, normalMatrix, lightDirTr, lightColor, cameraPosition);
 
     ground.initUniforms(model, view, projection, normalMatrix, lightDirTr, lightColor);
@@ -299,6 +325,8 @@ void initUniforms()
 
     model = scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 2.0f));
     tree.initUniforms(model, view, projection, normalMatrix, lightDirTr, lightColor);
+
+    model = glm::mat4(1.0f);
 }
 
 void initFrameBuffer()
@@ -404,6 +432,15 @@ void renderScene()
     glClear(GL_DEPTH_BUFFER_BIT);
     ground.render_depth(lightSpaceTrMatrix);
     tree.render_depth(lightSpaceTrMatrix);
+
+    depthMapShader.useShaderProgram();
+    depthMapShader.setMat4("lightSpaceTrMatrix", value_ptr(lightSpaceTrMatrix));
+    model = scale(glm::mat4(1.0f), glm::vec3(2.0f, 2.0f, 2.0f));
+    model = translate(model, glm::vec3(0.0f, 11.0f, 0.0f));
+    depthMapShader.setMat4("model", value_ptr(model));
+    model = glm::mat4(1.0f);
+    lightHouse.Draw(depthMapShader);
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     if (showDepthMap)
@@ -435,20 +472,26 @@ void renderScene()
 
         const auto cameraPosition = myCamera.getCameraPosition();
 
-        screenQuadShader.useShaderProgram();
-
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, depthMapTexture);
-        screenQuadShader.setInt("depthMap", 0);
+        lightHouseShader.useShaderProgram();
+        lightHouseShader.setMat4("view", view);
+        lightHouseShader.setMat4("projection", projection);
+        lightHouseShader.setMat3("normalMatrix", normalMatrix);
+        lightHouseShader.setVec3("lightDir", value_ptr(lightDirTr));
+        lightHouseShader.setVec3("lightColor", value_ptr(lightColor));
+        lightHouseShader.setVec3("pointLightPosition", value_ptr(pointLightPosition));
+        lightHouseShader.setVec3("pointLightColor", value_ptr(pointLightColor));
+        lightHouse.Draw(lightHouseShader);
 
         // Render ground
-        ground.render(view, projection, normalMatrix, lightDirTr, lightSpaceTrMatrix, depthMapTexture);
+        ground.render(view, projection, normalMatrix, lightDirTr, lightColor,lightSpaceTrMatrix, depthMapTexture, pointLightPosition, pointLightColor);
 
         // Render Grass
-        grass.render(view, projection, normalMatrix, lightDirTr, lightSpaceTrMatrix, depthMapTexture);
+        grass.render(view, projection, normalMatrix, lightDirTr, lightColor, lightSpaceTrMatrix, depthMapTexture, pointLightPosition, pointLightColor);
 
         // Render Trees
-        tree.render(view, projection, normalMatrix, lightDirTr, lightSpaceTrMatrix, depthMapTexture);
+        tree.render(view, projection, normalMatrix, lightDirTr, lightColor, lightSpaceTrMatrix, depthMapTexture, pointLightPosition, pointLightColor);
+
+
 
         // Render Skybox
         skyboxShader.useShaderProgram();
@@ -459,7 +502,7 @@ void renderScene()
         // Render Water
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_CUBE_MAP, mySkybox.GetTextureId());
-        water.render(model, view, projection, normalMatrix, lightDirTr, cameraPosition);
+        water.render(model, view, projection, normalMatrix, lightDirTr, lightColor, cameraPosition);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glDisable(GL_DEPTH_TEST);
@@ -543,14 +586,16 @@ int main(int argc, const char *argv[])
         // grass.drawImguiControls();
         // tree.drawImguiControls();
 
-        ImGui::Begin("Light Direction");
+        ImGui::Begin("Light");
         ImGui::DragFloat3("Light Direction", value_ptr(lightDir), 1.0f, -1000.0f, 1000.0f);
-        ImGui::DragFloat("left", &left, 1.0f, -1000.0f, 1000.0f);
-        ImGui::DragFloat("right", &right, 1.0f, -1000.0f, 1000.0f);
-        ImGui::DragFloat("bottom", &bottom, 1.0f, -1000.0f, 1000.0f);
-        ImGui::DragFloat("top", &top, 1.0f, -1000.0f, 1000.0f);
-        ImGui::DragFloat("near", &near_plane, 1.0f, 0.1f, 1000.0f);
-        ImGui::DragFloat("far", &far_plane, 1.0f, 0.1f, 10000.0f);
+        ImGui::ColorEdit3("Light Color", value_ptr(lightColor));
+
+        ImGui::DragFloat("near", &near_plane, 1.0f, 0.1f, 10000.0f);
+        ImGui::DragFloat("far", &far_plane, 1.0f, 0.1f, 100000.0f);
+
+        //point light controls
+        ImGui::DragFloat3("Point Light Position", value_ptr(pointLightPosition), 1.0f, -1000.0f, 1000.0f);
+        ImGui::ColorEdit3("Point Light Color", value_ptr(pointLightColor));
 
         ImGui::End();
 

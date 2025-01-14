@@ -15,12 +15,13 @@ namespace gps
     class Water
     {
     public:
-        void initUniforms(glm::mat4 modelMatrix, glm::mat4 view, glm::mat3 normalMatrix, glm::vec3 lightDir,
-                          glm::vec3 lightColor, glm::vec3 viewPos);
+        void initUniforms(const glm::mat4 &modelMatrix, const glm::mat4 &view, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir,
+                  const glm::vec3 &lightColor, const glm::vec3 &viewPos);
 
         void drawImguiControls();
 
-        void render(glm::mat4 model,glm::mat4 view, glm::mat4 projection,glm::mat3 normalMatrix, glm::vec3 lightDir, glm::vec3 viewPos);
+        void render(const glm::mat4 &model,const glm::mat4 &view, const glm::mat4 &projection,
+            const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor, const glm::vec3 &viewPos);
 
         void loadModel(const std::string &fileName);
 

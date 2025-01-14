@@ -4,10 +4,13 @@ in vec3 fNormal;
 in vec4 fPosEye;
 in vec2 fTexCoords;
 in vec4 fragPosLightSpace;
+in vec3 lightPosEye;
 
 //lighting
 uniform	vec3 lightDir;
 uniform	vec3 lightColor;
+
+uniform vec3 pointLightColor;
 
 //texture
 uniform sampler2D treeTexture;
@@ -21,6 +24,10 @@ vec3 diffuse;
 vec3 specular;
 float specularStrength = 0.5f;
 float shininess = 32.0f;
+
+float constant = 1.0f;
+float linear = 0.007f;
+float quadratic = 0.0002f;
 
 
 void computeLightComponents()
@@ -41,6 +48,20 @@ void computeLightComponents()
 
     float specCoeff = pow(max(dot(viewDirN, reflection), 0.0f), shininess);
     specular = specularStrength * specCoeff * lightColor;
+
+    vec3 lightDirNPoint = normalize(lightPosEye - fPosEye.xyz);
+    //compute distance to light
+    float dist = length(lightPosEye - fPosEye.xyz);
+    //compute attenuation
+    float att = 1.0f / (constant + linear * dist + quadratic * (dist * dist));
+
+    vec3 ambientPoint = att * ambientStrength * pointLightColor;
+    vec3 diffusePoint = att * max(dot(normalEye, lightDirNPoint), 0.0f) * pointLightColor;
+    vec3 specularPoint = att * specularStrength * specCoeff * pointLightColor;
+
+    ambient += ambientPoint;
+    diffuse += diffusePoint;
+    specular += specularPoint;
 }
 
 float computeShadow(){

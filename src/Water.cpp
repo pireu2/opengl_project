@@ -3,15 +3,17 @@
 namespace gps
 {
 
-    void Water::initUniforms(glm::mat4 modelMatrix, glm::mat4 view, glm::mat3 normalMatrix, glm::vec3 lightDir, glm::vec3 lightColor, glm::vec3 viewPos)
+    void Water::initUniforms(const glm::mat4 &modelMatrix, const glm::mat4 &view, const glm::mat3 &normalMatrix, const glm::vec3 &lightDir,
+                  const glm::vec3 &lightColor, const glm::vec3 &viewPos)
     {
         shader.useShaderProgram();
 
-        shader.setMat4("model", modelMatrix);
-        shader.setMat4("view", view);
+        shader.setMat4("model", value_ptr(modelMatrix));
+        shader.setMat4("view", value_ptr(view));
 
-        shader.setVec3("lightDir", lightDir);
-        shader.setVec3("viewPos", viewPos);
+        shader.setVec3("lightDir", value_ptr(lightDir));
+        shader.setVec3("viewPos", value_ptr(viewPos));
+        shader.setVec3("lightColor", value_ptr(lightColor));
 
         shader.setInt("vertexWaveCount", vertexWaveCount);
         shader.setFloat("vertexSeed", vertexSeed);
@@ -59,15 +61,18 @@ namespace gps
         shader.setFloat("fresnelStrength", fresnelStrength);
     }
 
-    void Water::render(glm::mat4 model,glm::mat4 view, glm::mat4 projection,glm::mat3 normalMatrix, glm::vec3 lightDir, glm::vec3 viewPos)
+    void Water::render(const glm::mat4 &model,const glm::mat4 &view, const glm::mat4 &projection,
+            const glm::mat3 &normalMatrix, const glm::vec3 &lightDir, const glm::vec3 &lightColor, const glm::vec3 &viewPos)
     {
         shader.useShaderProgram();
-        shader.setMat4("model", model);
-        shader.setMat4("view", view);
-        shader.setMat4("projection", projection);
-        shader.setVec3("lightDir", lightDir);
+        shader.setMat4("model", value_ptr(model));
+        shader.setMat4("view", value_ptr(view));
+        shader.setMat4("projection", value_ptr(projection));
+        shader.setVec3("lightDir", value_ptr(lightDir));
+        shader.setVec3("lightColor", value_ptr(lightColor));
+
         //shader.setMat3("normalMatrix", normalMatrix);
-        shader.setVec3("viewPos", viewPos);
+        shader.setVec3("viewPos", value_ptr(viewPos));
         shader.setFloat("time", static_cast<float>(glfwGetTime()));
 
         shader.setInt("vertexWaveCount", vertexWaveCount);
