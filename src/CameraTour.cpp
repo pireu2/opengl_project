@@ -50,7 +50,10 @@ namespace gps
     void CameraTour::updateTour(float deltaTime, gps::Camera &camera, float duration)
     {
         if (!tourActive || currentIndex >= positions.size() - 1)
+        {
+            stopTour();
             return;
+        }
 
         elapsedTime += deltaTime;
         float t = elapsedTime / duration;
